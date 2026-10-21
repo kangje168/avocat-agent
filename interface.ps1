@@ -49,7 +49,8 @@ $null=Label $page 'Modèle local' 20 435 150 25
 $models=List $page 170 432 440
 $refresh=Button $page 'Actualiser' 630 428 130
 $analyze=Button $page 'Lancer lʼanalyse' 20 485 260
-$null=Label $page 'Le traitement peut durer plusieurs minutes sur ce poste. Vous pourrez lire le rapport dans lʼonglet Rapports.' 20 535 880 55
+$deepen=Button $page 'Approfondir avec Ollama' 300 485 280
+$null=Label $page 'Première lecture immédiate, avec les références fournies. Le complément Ollama est facultatif et peut prendre plusieurs minutes.' 20 535 880 55
 $page=$pages['Rapports']
 $reportList=List $page 20 20 890
 $reportText=Box $page 20 65 890 465 $true
@@ -69,7 +70,8 @@ $reviewerInput=[Windows.Forms.TextBox]::new(); $reviewerInput.SetBounds(320,498,
 $approve=[Windows.Forms.CheckBox]::new(); $approve.Text='Jʼai relu ce texte et vérifié ses fondements. Publication locale uniquement.'; $approve.SetBounds(20,535,890,28); $page.Controls.Add($approve)
 $publish=Button $page 'Valider et publier' 20 570 240
 $page=$pages['Sources juridiques']
-$null=Label $page 'Les sources sont conservées localement. Sans corpus vérifié, les conclusions juridiques ne sont pas fiables.' 20 15 890 50
+$null=Label $page 'Six fiches de départ sont déjà fournies. Ajouter des textes est facultatif pour la première lecture.' 20 15 590 50
+$showReferences=Button $page 'Voir les fiches fournies' 630 15 280
 $sourceTitle=[Windows.Forms.TextBox]::new(); $sourceTitle.SetBounds(180,80,730,28); $page.Controls.Add($sourceTitle); $null=Label $page 'Titre / article' 20 83 150 25
 $sourceUrl=[Windows.Forms.TextBox]::new(); $sourceUrl.SetBounds(180,120,730,28); $page.Controls.Add($sourceUrl); $null=Label $page 'Lien officiel HTTPS' 20 123 160 25
 $null=Label $page 'Applicable du' 20 165 130 25
@@ -102,7 +104,10 @@ AU QUOTIDIEN
 1. Ouvrir Mes dossiers et créer un dossier.
 2. Ajouter les documents TXT/MD, ou écrire les faits dans la grande zone.
 3. Cliquer sur Lancer lʼanalyse. Lire le résultat dans Rapports.
-4. Faire vérifier le rapport par un avocat avant toute décision.
+4. Facultatif : Approfondir avec Ollama pour sélectionner dʼautres extraits.
+5. Faire vérifier les conclusions juridiques par un avocat avant toute décision.
+
+La première lecture fonctionne sans modèle et sans ajouter de textes de loi. Six fiches publiques de référence sont incluses. Les doublons sont regroupés sans supprimer vos fichiers.
 
 INSTALLATION
 La préparation réutilise Ollama et les modèles déjà présents. Si nécessaire, elle installe Ollama avec le gestionnaire Windows et télécharge un modèle public (plusieurs Go). Internet est nécessaire pour cette étape, jamais pour envoyer les pièces.
@@ -131,11 +136,12 @@ function Refresh-Models {
         $models.Items.Clear()
         foreach($m in $tags.models) {if($m.name -notmatch '(?i)cloud|https?') {$models.Items.Add($m.name) | Out-Null}}
         if($models.Items.Count) {$models.SelectedIndex=0; for($i=0;$i -lt $models.Items.Count;$i++){if($models.Items[$i] -eq 'qwen3.5:4b'){$models.SelectedIndex=$i}}}
-        $diagnostic.Text="Ollama : disponible sur ce poste.`r`nModèles locaux : $($models.Items.Count).`r`nSources importées : $(@(Load-Laws).Count).`r`nDonnées : $Root\vault`r`nInterface native : contrôles applicatifs, sans isolation système."
+        $diagnostic.Text="Ollama : disponible sur ce poste.`r`nModèles locaux : $($models.Items.Count).`r`nSix fiches de référence fournies ; première lecture disponible sans modèle.`r`nDonnées : $Root\vault`r`nInterface native : contrôles applicatifs, sans isolation système."
         if(-not $models.Items.Count){$diagnostic.AppendText("`r`nCliquer sur Préparer ce poste pour télécharger le modèle.")}
     } catch {$diagnostic.Text='Ollama indisponible. Cliquer sur Préparer ce poste. Si le problème persiste, contacter le responsable informatique.'}
     finally {$client.Dispose();$handler.Dispose()}
-    $laws=@(Load-Laws);$reviewed=@($laws | Where-Object {Test-ReviewedLaw $_});$sourceSummary.Text="$($reviewed.Count) source(s) relue(s) / $($laws.Count) importée(s)."
+    try{$laws=@(Load-Laws);$reviewed=@($laws | Where-Object {Test-ReviewedLaw $_});$sourceSummary.Text="$($reviewed.Count) source(s) complémentaire(s) relue(s)."}
+    catch{$sourceSummary.Text='Une source complémentaire est invalide. La première lecture reste disponible.'}
 }
 function Refresh-Results {
     $reportList.Items.Clear(); $script:reports=@(Get-ChildItem -LiteralPath (Safe 'vault/reports') -Filter '*.json' -File | Sort-Object LastWriteTime -Descending)
@@ -147,9 +153,9 @@ function Refresh-Results {
 }
 function Start-Work([string]$Operation,[hashtable]$Extra=@{}) {
     if($script:busy){throw 'Un traitement est déjà en cours. Attendre sa fin.'}
-    if($Operation -ne 'install' -and $Operation -ne 'publish' -and $models.SelectedIndex -lt 0){throw 'Aucun modèle local disponible. Ouvrir Installation et aide.'}
+    if($Operation -eq 'deepen' -and $models.SelectedIndex -lt 0){throw 'Aucun modèle local disponible. La première lecture reste accessible ; préparer Ollama dans Installation et aide pour le complément.'}
     $uid=[guid]::NewGuid().ToString('N')
-    $req=@{command=$Operation;question='';case_id='';model=[string]$models.SelectedItem;draft_id='';reviewer='';expected_hash='';as_of=(Get-Date -Format 'yyyy-MM-dd')}
+    $req=@{command=$Operation;question='';case_description='';case_id='';model=[string]$models.SelectedItem;draft_id='';reviewer='';expected_hash='';as_of=(Get-Date -Format 'yyyy-MM-dd')}
     foreach($key in $Extra.Keys){$req[$key]=$Extra[$key]}
     Write-Json (Safe ('vault/ui/'+$uid+'.request.json')) $req
     $scriptFile=if($Operation -eq 'install'){'installation.ps1'}else{'travail.ps1'}
@@ -157,7 +163,7 @@ function Start-Work([string]$Operation,[hashtable]$Extra=@{}) {
     $p=Start-Process -FilePath 'powershell.exe' -ArgumentList $args -WindowStyle Hidden -PassThru
     $script:job=@{id=$uid;process=$p;operation=$Operation;started=(Get-Date)}; $script:busy=$true
     $status.Text='Traitement local en cours… Merci de patienter sans fermer la fenêtre.'
-    $tabs.Enabled=$false
+    foreach($button in @($analyze,$deepen,$draftButton,$publish,$saveSource,$setup,$newCase,$import)){$button.Enabled=$false}
 }
 $newCase.Add_Click({Guard {
     $dialog=[Windows.Forms.Form]::new(); $dialog.Text='Nouveau dossier'; $dialog.ClientSize=[Drawing.Size]::new(440,145); $dialog.StartPosition='CenterParent'
@@ -181,25 +187,22 @@ $caseList.Add_SelectedIndexChanged({Guard {
 $import.Add_Click({Guard {
     $cid=Selected-Case; $d=[Windows.Forms.OpenFileDialog]::new(); $d.Multiselect=$true; $d.Filter='Documents texte (*.txt;*.md)|*.txt;*.md'
     if($d.ShowDialog() -eq 'OK') {
+        $added=0;$already=0
         foreach($source in $d.FileNames){
-            $info=Get-Item -LiteralPath $source
-            if($info.Extension -notin '.txt','.md' -or $info.Length -gt 2MB -or ($info.Attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'Document non accepté : utiliser TXT/MD, 2 Mo maximum, sans lien.'}
-            $target=Safe ('vault/cases/'+$cid+'/'+[guid]::NewGuid().ToString('N').Substring(0,8)+'-'+$info.Name)
-            [IO.File]::Copy($source,$target,$false)
+            $result=Import-CaseDocument $cid $source
+            if($result.added){$added++}else{$already++}
         }
-        $pieceCount.Text="$(@(Get-ChildItem -LiteralPath (Safe ('vault/cases/'+$cid)) -File).Count) pièce(s) locale(s) ajoutée(s)."
+        $pieceCount.Text="$added document(s) ajouté(s), $already déjà présent(s). Aucun doublon créé."
     };$d.Dispose()
 }})
-$analyze.Add_Click({Guard {
+function Start-CaseWork([string]$Operation) {
     $cid=Selected-Case
     if($description.Text.Length -gt 20000){throw 'Description trop longue : 20 000 caractères maximum.'}
     [IO.File]::WriteAllText((Safe ('vault/descriptions/'+$cid+'.txt')),$description.Text,[Text.UTF8Encoding]::new($false))
-    $q=$questionInput.Text
-    if(-not [string]::IsNullOrWhiteSpace($description.Text)){$q+="`nDescription fournie par l'utilisateur (allégations à vérifier) :`n"+$description.Text}
-    if($q.Length -gt 8000){throw 'Description et question : 8 000 caractères maximum pour cette version.'}
-    if(@(Load-Laws | Where-Object {Test-ReviewedLaw $_}).Count -eq 0){Message 'Aucune source relue. Le programme préparera seulement une liste de vérifications, sans demander au modèle de produire une analyse juridique.'}
-    Start-Work 'analyze' @{case_id=$cid;question=$q}
-}})
+    Start-Work $Operation @{case_id=$cid;question=$questionInput.Text;case_description=$description.Text}
+}
+$analyze.Add_Click({Guard {Start-CaseWork 'analyze'}})
+$deepen.Add_Click({Guard {Start-CaseWork 'deepen'}})
 $reportList.Add_SelectedIndexChanged({Guard {if($reportList.SelectedIndex -ge 0){$r=Read-Text $script:reports[$reportList.SelectedIndex].FullName | ConvertFrom-Json; $reportText.Text=Get-ReportDisplay $r}}})
 $draftList.Add_SelectedIndexChanged({Guard {$approve.Checked=$false;if($draftList.SelectedIndex -ge 0){$r=Read-Text $script:drafts[$draftList.SelectedIndex].FullName | ConvertFrom-Json;$directiveText.Text=Get-ReportDisplay $r}}})
 $draftButton.Add_Click({Guard {Start-Work 'draft' @{question=$directiveQuestion.Text}}})
@@ -227,6 +230,14 @@ $saveSource.Add_Click({Guard {
     $sourceReviewed.Checked=$false;Refresh-Models;Message 'Source enregistrée avec son empreinte de relecture. Cette déclaration locale nʼest pas une authentification indépendante.'
 }})
 $setup.Add_Click({Guard {Start-Work 'install'}})
+$showReferences.Add_Click({Guard {
+    $dialog=[Windows.Forms.Form]::new();$dialog.Text='Fiches de référence fournies';$dialog.ClientSize=[Drawing.Size]::new(850,630);$dialog.StartPosition='CenterParent'
+    $text=Box $dialog 15 15 820 600 $true
+    $corpus=[IO.File]::ReadAllText($script:ReferencePath,[Text.Encoding]::UTF8) | ConvertFrom-Json
+    $lines=@("Fiches préparées le $($corpus.prepared_at). Reformulations documentaires, sans validation avocat automatique.",'')
+    foreach($r in $corpus.references){$lines+=@($r.title,$r.note,$r.url,'')}
+    $text.Text=$lines -join "`r`n";$dialog.ShowDialog($form) | Out-Null;$dialog.Dispose()
+}})
 $check.Add_Click({Guard {Refresh-Models}});$refresh.Add_Click({Guard {Refresh-Models}})
 $timer=[Windows.Forms.Timer]::new();$timer.Interval=1000
 $timer.Add_Tick({Guard {
@@ -236,13 +247,13 @@ $timer.Add_Tick({Guard {
     $result=Safe ('vault/ui/'+$script:job.id+'.result.json')
     if(Test-Path -LiteralPath $result){
         $r=Read-Text $result | ConvertFrom-Json; $operation=$script:job.operation
-        $script:busy=$false;$tabs.Enabled=$true;$status.Text=if($r.ok){'Traitement terminé.'}else{'Le traitement a échoué. Consulter le message.'}
+        $script:busy=$false;foreach($button in @($analyze,$deepen,$draftButton,$publish,$saveSource,$setup,$newCase,$import)){$button.Enabled=$true};$status.Text=if($r.ok){'Traitement terminé.'}else{'Le traitement a échoué. Consulter le message.'}
         Refresh-Results
-        if($r.ok -and $operation -eq 'analyze'){$tabs.SelectedTab=$pages['Rapports']}
+        if($r.ok -and $operation -in @('analyze','deepen')){$tabs.SelectedTab=$pages['Rapports']}
         elseif($r.ok -and $operation -eq 'draft'){$tabs.SelectedTab=$pages['Directives du cabinet']}
         elseif($operation -eq 'install'){Refresh-Models;Message $r.message}
         else{Message $r.message}
-    }elseif($script:job.process.HasExited){$script:busy=$false;$tabs.Enabled=$true;$status.Text='Traitement interrompu.';Message 'Le processus a été interrompu sans résultat. Réessayer ou contacter le responsable informatique.'}
+    }elseif($script:job.process.HasExited){$script:busy=$false;foreach($button in @($analyze,$deepen,$draftButton,$publish,$saveSource,$setup,$newCase,$import)){$button.Enabled=$true};$status.Text='Traitement interrompu.';Message 'Le processus a été interrompu sans résultat. La première lecture reste accessible dans Rapports.'}
 }})
 $form.Add_FormClosing({param($sender,$eventArgs) if($script:busy){$eventArgs.Cancel=$true;Message 'Attendre la fin du traitement avant de fermer.'}})
 Guard {Refresh-Cases;Refresh-Results;Refresh-Models}

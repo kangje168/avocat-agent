@@ -1,0 +1,54 @@
+{
+  "prepared_at": "2026-10-21",
+  "scope": "Fiches de recherche pour les obligations civiles et les prestations de services commerciales. Reformulations documentaires, sans validation individuelle par un avocat et sans garantie de mise a jour automatique.",
+  "references": [
+    {
+      "id": "civil-1353",
+      "title": "Code civil — article 1353 : charge de la preuve",
+      "url": "https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000032042341/2026-03-23",
+      "topics": ["charge_preuve"],
+      "note": "La personne qui demande l execution d une obligation doit en etablir le fondement. Une personne qui se dit liberee doit, pour sa part, justifier le paiement ou une autre cause d extinction. Cela invite a distinguer les affirmations de chaque partie et les elements qui les soutiennent, sans exiger automatiquement du defendeur qu il prouve une absence de contrat. Les regimes speciaux et les circonstances peuvent modifier l analyse.",
+      "question": "Quels elements soutiennent la demande, et quels elements soutiennent une eventuelle liberation ou contestation ?"
+    },
+    {
+      "id": "civil-1359",
+      "title": "Code civil — article 1359 : preuve des actes juridiques",
+      "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000032042311/2022-05-20",
+      "topics": ["regime_preuve"],
+      "note": "Dans son domaine d application, le droit civil exige un ecrit pour certains actes dont la valeur depasse le montant determine par decret et encadre la preuve contre un ecrit. Cette fiche ne fixe aucun seuil de memoire. Avant de tirer une consequence d un devis non signe, il faut verifier le champ de cette regle, les exceptions, les modes de preuve admis et un eventuel regime commercial. Une difficulte de preuve ne se confond pas avec la nullite du contrat.",
+      "question": "Quel regime de preuve s applique aux parties et a l acte, et quelles exceptions doivent etre examinees ?"
+    },
+    {
+      "id": "commerce-l110-3",
+      "title": "Code de commerce — article L110-3 : preuve commerciale",
+      "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006219127/2026-06-24",
+      "topics": ["preuve_commerciale", "regime_preuve"],
+      "note": "Pour les actes de commerce a l egard des commercants, les moyens de preuve sont en principe ouverts, sous reserve des textes qui imposent une autre solution. La qualite des parties et la nature de l acte doivent etre verifiees ; le seul mot societe ne tranche pas toute la qualification. L absence de devis signe ne permet donc pas de conclure automatiquement qu un engagement ne peut pas etre prouve.",
+      "question": "Des courriels, echanges, temoignages ou comportements peuvent-ils etayer ou contredire l engagement allegue ?"
+    },
+    {
+      "id": "civil-1165",
+      "title": "Code civil — article 1165 : prix d une prestation de service",
+      "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000036829839/2024-09-25",
+      "topics": ["prix_service"],
+      "note": "Pour une prestation de service, l absence d accord sur le prix avant l execution n exclut pas necessairement une fixation ulterieure par le creancier, qui doit en expliquer le montant en cas de contestation. Un abus de fixation peut conduire a une demande de dommages et interets et, selon le cas, a la resolution judiciaire. Ce mecanisme ne prouve, a lui seul, ni la commande ni l execution. Separer le consentement a la mission, son perimetre, la prestation effectivement realisee et la justification du prix ; verifier le droit applicable dans le temps.",
+      "question": "Quelle mission aurait ete acceptee, quels travaux ont ete faits, et comment le montant reclame est-il justifie ?"
+    },
+    {
+      "id": "civil-2224",
+      "title": "Code civil — article 2224 : prescription de droit commun",
+      "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000019017112/2026-09-02",
+      "topics": ["prescription"],
+      "note": "Le regime de droit commun des actions personnelles ou mobilieres prevoit une duree de cinq ans, liee a la connaissance effective ou attendue des faits permettant d agir. Il faut rechercher les regimes speciaux, le point de depart pertinent ainsi que les causes de suspension et d interruption. La seule date d une facture ou d une relance ne permet pas de calculer automatiquement une echeance.",
+      "question": "Quelle action est envisagee et quelles dates, causes d interruption ou regles speciales doivent etre verifiees ?"
+    },
+    {
+      "id": "commerce-l110-4",
+      "title": "Code de commerce — article L110-4 : obligations commerciales",
+      "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000027725867/2026-04-28",
+      "topics": ["prescription"],
+      "note": "Le premier paragraphe traite des obligations nees du commerce entre commercants ou avec des non-commercants et retient cinq ans, sous reserve de prescriptions speciales plus courtes. Le texte comprend aussi des situations particulieres. Identifier le fondement exact de la demande et les regles speciales applicables avant de retenir un delai. Cette fiche ne calcule aucune date limite.",
+      "question": "La demande releve-t-elle du regime commercial ou d un delai special plus court ?"
+    }
+  ]
+}

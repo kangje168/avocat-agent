@@ -2,6 +2,8 @@
 
 Agent en français utilisant Ollama localement pour analyser les dossiers, rechercher dans un corpus de droit français et rédiger les directives communes du cabinet. Aucune télémétrie ni transmission automatique vers Internet. Les documents ne sont jamais envoyés à un moteur de recherche.
 
+Version d’usage : `analyze` produit une première lecture immédiatement ; `deepen` ajoute une sélection d’extraits via Ollama. Les deux fonctionnent sans sources personnelles relues. `corpus-reference.json` contient six fiches de recherche publiques, distinctes des textes légaux intégraux et des sources relues par le cabinet. `legal` conserve le mode juridique avancé avec contrôles stricts. L’interface utilise par défaut la première lecture et le complément factuel.
+
 ## Installation et utilisation
 
 Prérequis : Windows PowerShell 5.1 ou PowerShell 7 et Ollama. Préparer les modèles avant d’ajouter des données confidentielles. Le modèle par défaut `qwen2.5:14b` doit être installé séparément ; choisir un autre modèle local avec `-Model` selon le matériel et les résultats d’évaluation.

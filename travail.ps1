@@ -7,8 +7,9 @@ $resultPath=Safe ('vault/ui/'+$RequestId+'.result.json')
 try {
     $req=Read-Text $requestPath | ConvertFrom-Json
     $Command=$req.command
-    if ($Command -notin @('analyze','draft','publish')) { throw 'Operation non autorisee' }
+    if ($Command -notin @('analyze','deepen','draft','publish')) { throw 'Operation non autorisee' }
     $Question=$req.question; $CaseId=$req.case_id; $Model=$req.model
+    $CaseDescription=if(Has-Field $req 'case_description'){$req.case_description}else{''}
     $DraftId=$req.draft_id; $Reviewer=$req.reviewer; $ExpectedHash=$req.expected_hash; $AsOf=$req.as_of
     $result=Main | Out-String
     Write-Json $resultPath @{ok=$true;message=$result}

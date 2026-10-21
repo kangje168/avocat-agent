@@ -1,5 +1,5 @@
 ﻿# Controles techniques locaux. Ils ne remplacent pas le controle juridique humain.
-$script:QualityVersion='2026-10-21.2'
+$script:QualityVersion='2026-10-21.3'
 $script:LegalTopics=[ordered]@{
     charge_preuve='Charge de la preuve : qui affirme quoi, et quelles pieces etayent chaque affirmation ?'
     regime_preuve='Regime de preuve : domaine civil, commercial, actes mixtes, exceptions et droit dans le temps a verifier.'
@@ -81,7 +81,8 @@ function Missing-Topics($Laws,$Plan) {
 }
 function Test-UsableGuidelines($Record,$CurrentLaws) {
     if($null -eq $Record -or -not (Has-Field $Record 'quality_version') -or $Record.quality_version -ne $script:QualityVersion){return $false}
-    if(-not (Has-Field $Record 'quality_status') -or $Record.quality_status -ne 'technical_checks_passed' -or (Hash $Record.text) -cne $Record.content_hash){return $false}
+    if(-not (Has-Field $Record 'quality_status') -or $Record.quality_status -notin @('technical_checks_passed','operational_ready') -or (Hash $Record.text) -cne $Record.content_hash){return $false}
+    if($Record.quality_status -eq 'operational_ready'){return (Hash (New-OperationalDirective $Record.question (New-ReviewPlan $Record.question))) -ceq $Record.content_hash}
     foreach($source in $Record.sources){
         $now=@($CurrentLaws | Where-Object {$_.id -ceq $source.id -and (Test-ReviewedLaw $_) -and $_.valid_from -le $AsOf -and (-not $_.valid_to -or $_.valid_to -ge $AsOf)})
         if($now.Count -ne 1 -or (Get-SourceFingerprint $now[0]) -cne (Get-SourceFingerprint $source)){return $false}
@@ -169,6 +170,6 @@ function Render-ModelReview($Data,$Laws,$Pieces,$Plan) {
     return $lines -join "`n"
 }
 function Get-ReportDisplay($Record) {
-    if(-not (Has-Field $Record 'quality_version') -or $Record.quality_version -ne $script:QualityVersion){return 'ANCIEN RAPPORT NON CONFORME AU CONTROLE ACTUEL. Ne pas utiliser ce texte pour une decision. Relancer l analyse avec les sources verifiees. Le fichier original reste conserve localement.'}
+    if(-not (Has-Field $Record 'quality_version') -or $Record.quality_version -ne $script:QualityVersion){return 'Ancien format de rapport. Cliquer sur Lancer l analyse pour obtenir la nouvelle lecture du dossier, sans bibliotheque a remplir. Le fichier historique reste conserve localement.'}
     return $Record.text
 }

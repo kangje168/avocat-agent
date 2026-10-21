@@ -1,12 +1,14 @@
-# Contrôles introduits après le rejet d’un rapport
+﻿# Contrôles introduits après le rejet d’un rapport
 
-Le rapport initial associait des numéros d’articles à des règles différentes, présentait un exposé comme une preuve et omettait des questions déterminantes. Il ne passe pas le nouveau contrôle. Le fichier historique reste local ; son texte n’est plus affiché comme rapport courant dans l’interface.
+Le rapport initial associait des numéros d’articles à des règles différentes, présentait un exposé comme une preuve et omettait des questions déterminantes. Il ne passe pas le contrôle juridique avancé. Le fichier historique reste local.
+
+La version suivante avait étendu ce blocage à tout le travail sur un dossier, ce qui rendait l’application difficile à utiliser. Désormais, `analyze` prépare immédiatement un dossier de travail avec extraits, questions, actions et fiches documentaires fournies. Aucune bibliothèque personnelle ni modèle n’est nécessaire. `deepen` ajoute, facultativement, une sélection locale d’extraits par Ollama ; une réponse fautive est écartée sans retirer le rapport existant. Le mode avancé `legal` conserve ses contrôles stricts. Sans sources relues, les projets de directives deviennent des consignes opérationnelles déterministes, publiables après relecture nommée et contrôle du texte exact, sans présenter de règle juridique générée.
 
 ## Ce qui change réellement
 
 | Défaut observé | Traitement dans le programme |
 | --- | --- |
-| Analyse juridique alors que le corpus est vide | Aucun appel à Ollama. Production d’un inventaire et d’une liste de collecte, sans consultation juridique générée. |
+| Bibliothèque personnelle vide | La première lecture reste accessible et affiche les fiches documentaires fournies. Le mode juridique avancé et la publication nécessitent des sources relues. |
 | URL officielle utilisée comme preuve de fiabilité | Source exclue sans code, référence, thèmes, relecteur, date et empreinte de relecture. Cette attestation reste déclarative. |
 | Numéro d’article ou seuil inventé | Le modèle ne rédige pas les références. Le programme les affiche depuis la source relue ; les chiffres et références hors citations sont refusés dans le raisonnement libre. |
 | Citation inventée sous un identifiant valide | Comparaison exacte de l’extrait avec le texte local de la source. |
@@ -14,7 +16,7 @@ Le rapport initial associait des numéros d’articles à des règles différent
 | Exposé présenté comme faits prouvés | Affichage « texte fourni non authentifié » ; les observations sont des extraits, sans statut de fait établi. |
 | Oubli des questions de preuve commerciale et de prix | Ces thèmes deviennent obligatoires pour le profil détecté de prestations de services ; leur absence bloque l’analyse. |
 | Dates de naissance ou qualifications hors sujet | Filtre des demandes sans correspondance dans les données fournies. |
-| Texte rejeté néanmoins montré comme analyse | Réponse brute conservée seulement dans `vault/rejected/`, hors de l’affichage normal. Rapport de blocage à la place. |
+| Texte rejeté néanmoins montré comme analyse | Réponse brute conservée dans `vault/rejected/`, hors de l’affichage normal. La première lecture reste disponible ; le mode juridique avancé signale son échec. |
 | Publication d’un ancien projet ou d’un projet fondé sur une source modifiée | Refus de publication et nouvelle génération exigée. |
 
 ## Portée des contrôles

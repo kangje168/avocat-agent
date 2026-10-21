@@ -22,3 +22,5 @@ if (@(Select-Laws $laws 'absent').Count -ne 0) { throw 'Source sans correspondan
 if ((Hash 'abc') -ne 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad') { throw 'Empreinte incorrecte' }; $passed++
 Reject 'modele distant' { $script:Model='x-cloud'; Ask-Local 'private' }
 . "$PSScriptRoot/tests-qualite.ps1"
+. "$PSScriptRoot/tests-dossier.ps1"
+"$passed controles reussis"

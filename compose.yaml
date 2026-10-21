@@ -26,6 +26,8 @@ services:
     volumes:
       - ./agent.ps1:/workspace/agent.ps1:ro
       - ./qualite.ps1:/workspace/qualite.ps1:ro
+      - ./dossier.ps1:/workspace/dossier.ps1:ro
+      - ./corpus-reference.json:/workspace/corpus-reference.json:ro
       - ./vault:/workspace/vault
     read_only: true
     tmpfs: [/tmp]
