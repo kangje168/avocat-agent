@@ -22,15 +22,31 @@ Double-cliquez sur **DEMARRER.cmd**. La fenêtre du cabinet s’ouvre.
 4. Cliquez sur **Lancer l’analyse**. Attendez la fin du traitement : cela peut prendre plusieurs minutes.
 5. Le résultat apparaît dans **Rapports**. Vous pouvez le relire et cliquer sur **Enregistrer une copie…**.
 
+Si des sources vérifiées manquent, l’application affiche **EXAMEN JURIDIQUE BLOQUÉ** et prépare uniquement une liste des documents et vérifications nécessaires. Elle ne demande pas au modèle d’inventer une analyse. Ce comportement est normal : renseignez les sources demandées, puis relancez.
+
+Si la réponse du modèle échoue aux contrôles, elle est également bloquée. L’ancienne réponse n’est pas affichée comme un résultat utilisable. Un ancien rapport doit être régénéré.
+
 **Documents acceptés :** fichiers texte `.txt` et `.md`, 2 Mo maximum par fichier. Pour un PDF ou un document Word, copiez son texte dans la zone de description, ou faites-le convertir localement. Pour un scan, demandez une reconnaissance de texte locale. Ne transmettez pas les pièces à un site de conversion.
 
 ### Ajouter les textes de loi
 
-Dans **Sources juridiques**, renseignez le titre, le lien officiel et les dates d’application, puis collez le texte officiel. Cliquez sur **Ajouter cette source**. Un avocat doit en vérifier le contenu et la version. Sans sources importées, les propositions juridiques restent non vérifiées.
+Dans **Sources juridiques** :
+
+1. Renseignez le titre, le lien officiel et les dates d’application, puis collez le texte officiel.
+2. Indiquez le **code ou la juridiction** et l’**article ou la référence exacte**.
+3. Cochez seulement les questions réellement couvertes par ce texte.
+4. Après comparaison avec la source officielle, indiquez le nom de l’avocat relecteur et cochez sa confirmation.
+5. Cliquez sur **Vérifier et enregistrer**.
+
+Une simple URL officielle ne suffit pas. Une source sans relecture est exclue de l’analyse ; une modification du texte ou de ses références invalide sa relecture. Une source peut couvrir seulement une partie des questions : les textes manquants restent à compléter.
+
+Pour une prestation de service, l’application impose de traiter la charge de la preuve, le régime applicable dont la preuve commerciale, la fixation du prix et la prescription. Elle demande de distinguer la mission consentie, son périmètre, l’exécution réelle et la justification du montant. Ces vérifications ne constituent pas un corpus exhaustif de droit français.
 
 ### Préparer les directives communes
 
 Dans **Directives du cabinet**, décrivez la consigne souhaitée et cliquez sur **Préparer un projet**. Après vérification, l’avocat indique son nom, coche la confirmation de relecture puis clique sur **Valider et publier**.
+
+Un projet bloqué ou ancien ne peut pas être publié. Si une source a changé depuis sa rédaction, il faut refaire le projet. Les contrôles de citations ne valident pas automatiquement le sens juridique de l’application proposée : l’avocat doit comparer chaque extrait et chaque raisonnement.
 
 « Publier » signifie rendre la version applicable dans cette application locale. Rien n’est envoyé par courriel ni publié sur Internet. Le nom saisi n’est pas une signature électronique.
 

@@ -1,4 +1,10 @@
 {
+    "code": "Code ou juridiction a renseigner",
+    "article": "Reference exacte a verifier",
+    "topics": [],
+    "reviewed_by": "",
+    "reviewed_at": "",
+    "reviewed_hash": "",
     "id":  "identifiant-a-remplacer",
     "retrieved_at":  "2026-10-21",
     "valid_from":  "2026-10-21",

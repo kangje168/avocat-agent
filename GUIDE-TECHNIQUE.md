@@ -22,7 +22,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\agent.ps1 analyze -Cas
 
 Pour une description sans pièce, créer un dossier vide et fournir les faits dans `-Question`. Les arguments peuvent apparaître dans l’historique du terminal : préférer un fichier local pour les descriptions confidentielles.
 
-Les rapports dans `vault/reports/` distinguent faits, allégations, hypothèses, moyens offensifs et défensifs licites, contre-arguments, preuves manquantes et actions proposées. Ils enregistrent le modèle, les empreintes des pièces, la date du droit et les sources. Une validation par un avocat reste nécessaire.
+Les rapports dans `vault/reports/` contiennent un inventaire non authentifié et, si les contrôles le permettent, des pistes conditionnelles avec citations exactes. Sans couverture documentaire, aucun modèle n’est appelé et une liste de collecte remplace l’analyse. Les sorties rejetées sont conservées dans `vault/rejected/`, sans affichage normal. Voir [les contrôles de qualité](CONTROLES-QUALITE.md).
 
 ## Sources et veille juridique
 
@@ -34,7 +34,9 @@ Chaque source comporte un identifiant unique, un titre, une URL officielle HTTPS
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\agent.ps1 sources
 ```
 
-La recherche classe les sources par mots-clés français, filtre les périodes selon `-AsOf` et conserve au plus six résultats. Ce n’est pas une base exhaustive ou une recherche sémantique. Les citations `[LOI:id]` inexistantes sont rejetées ; cela ne valide pas leur interprétation ni les autres affirmations du modèle.
+Les sources utilisables nécessitent aussi `code`, `article`, `topics`, `reviewed_by`, `reviewed_at` et `reviewed_hash`. L’empreinte lie la relecture au contenu, aux références, aux dates et aux thèmes. Les anciennes sources restent lisibles mais sont exclues tant qu’elles ne sont pas relues via l’interface.
+
+La recherche retient les sources relues dont la période inclut `-AsOf`. Les thèmes obligatoires passent avant le classement lexical ; ils ne sont pas éliminés par la limite des six résultats lexicaux complémentaires. Une couverture incomplète bloque l’appel au modèle. Le budget de contexte reste strict : les sources obligatoires ne sont pas tronquées. Les extraits sont comparés mot pour mot ; ces contrôles ne valident pas leur interprétation.
 
 Le processus confidentiel n’effectue aucune recherche Internet. Actualisation : veille officielle dans un environnement distinct → vérification des versions → import des seuls textes publics → nouveau projet de directives → validation. Ne jamais communiquer de noms, faits clients ou requêtes dérivées des pièces à un service externe.
 
@@ -51,7 +53,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\agent.ps1 publish -Dra
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\agent.ps1 guidelines
 ```
 
-L’empreinte porte sur le texte UTF-8 sans BOM. En cas de modification manuelle du texte, recalculer également `content_hash` avant validation. Les sauts de ligne influent sur le calcul.
+L’empreinte porte sur le texte UTF-8 sans BOM. Le texte doit être identique au rendu des données contrôlées. Modifier manuellement le seul texte et son empreinte ne suffit plus : régénérer le projet. La publication revérifie aussi les sources et la version de la politique de qualité.
 
 La publication conserve la version historique et actualise `vault/published/current.json`, utilisé lors des analyses suivantes. Une modification des directives depuis la rédaction rend le projet obsolète et bloque sa publication. La publication est strictement locale, sans courriel ni site externe.
 
@@ -84,6 +86,6 @@ En mode natif, définir `OLLAMA_NO_CLOUD=1` et bloquer les connexions sortantes 
 
 ## Validation
 
-Les tests vérifient les chemins interdits, identifiants, domaines officiels, périodes de validité, résultats sans correspondance, SHA256 et noms de modèles cloud. Ils n’utilisent pas Ollama. La qualité des réponses, le conteneur et l’approbation organisationnelle doivent être réceptionnés avant l’utilisation de vrais dossiers.
+Les tests vérifient aussi le blocage sans sources, les citations inventées, les pièces jamais chargées, les faits présentés comme prouvés, les chiffres hors citation, les demandes hors sujet, les thèmes omis et les sources modifiées avant publication. Ils utilisent des réponses simulées et des sources synthétiques, sans Ollama. Ils ne constituent pas une évaluation juridique du modèle. La qualité des réponses, le conteneur et l’approbation organisationnelle doivent être réceptionnés avant l’utilisation de vrais dossiers.
 
 Références : [API officielle Ollama](https://github.com/ollama/ollama/blob/main/docs/api.md), [Légifrance](https://www.legifrance.gouv.fr/).

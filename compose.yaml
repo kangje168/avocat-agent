@@ -25,6 +25,7 @@ services:
     entrypoint: [pwsh, -NoLogo, -NoProfile, -File, /workspace/agent.ps1]
     volumes:
       - ./agent.ps1:/workspace/agent.ps1:ro
+      - ./qualite.ps1:/workspace/qualite.ps1:ro
       - ./vault:/workspace/vault
     read_only: true
     tmpfs: [/tmp]

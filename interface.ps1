@@ -77,9 +77,20 @@ $from=[Windows.Forms.DateTimePicker]::new(); $from.Format='Short'; $from.SetBoun
 $null=Label $page 'au (facultatif)' 400 165 160 25
 $until=[Windows.Forms.DateTimePicker]::new(); $until.Format='Short'; $until.ShowCheckBox=$true; $until.Checked=$false; $until.SetBounds(580,160,210,30); $page.Controls.Add($until)
 $null=Label $page 'Coller le texte officiel intégral vérifié par le cabinet' 20 205 890 30
-$sourceText=Box $page 20 240 890 230
-$saveSource=Button $page 'Ajouter cette source' 20 485 250
-$sourceSummary=Box $page 20 535 890 65 $true
+$sourceText=Box $page 20 240 890 125
+$null=Label $page 'Code / juridiction' 20 382 160 25
+$sourceCode=[Windows.Forms.TextBox]::new();$sourceCode.SetBounds(180,377,330,28);$page.Controls.Add($sourceCode)
+$null=Label $page 'Article / référence' 530 382 170 25
+$sourceArticle=[Windows.Forms.TextBox]::new();$sourceArticle.SetBounds(710,377,200,28);$page.Controls.Add($sourceArticle)
+$null=Label $page 'Questions effectivement couvertes par ce texte (à vérifier, sans cocher par défaut)' 20 412 890 25
+$sourceTopics=[Windows.Forms.CheckedListBox]::new();$sourceTopics.SetBounds(20,440,890,64);$sourceTopics.MultiColumn=$true;$sourceTopics.ColumnWidth=285;$sourceTopics.CheckOnClick=$true;$page.Controls.Add($sourceTopics)
+$script:topicKeys=@($script:LegalTopics.Keys)
+foreach($key in $script:topicKeys){$sourceTopics.Items.Add($script:LegalTopicTitles[$key]) | Out-Null}
+$null=Label $page 'Avocat relecteur' 20 515 180 25
+$sourceReviewer=[Windows.Forms.TextBox]::new();$sourceReviewer.SetBounds(210,510,390,28);$page.Controls.Add($sourceReviewer)
+$sourceReviewed=[Windows.Forms.CheckBox]::new();$sourceReviewed.Text='Jʼai comparé le texte, le code, la référence, les dates et les thèmes avec la source officielle.';$sourceReviewed.SetBounds(20,540,890,28);$page.Controls.Add($sourceReviewed)
+$saveSource=Button $page 'Vérifier et enregistrer' 20 575 260
+$sourceSummary=Label $page '' 300 577 610 28
 $page=$pages['Installation et aide']
 $null=Label $page 'Première utilisation : cliquez sur Préparer ce poste, puis attendez le message de confirmation.' 20 20 890 55
 $setup=Button $page 'Préparer ce poste' 20 82 260
@@ -124,7 +135,7 @@ function Refresh-Models {
         if(-not $models.Items.Count){$diagnostic.AppendText("`r`nCliquer sur Préparer ce poste pour télécharger le modèle.")}
     } catch {$diagnostic.Text='Ollama indisponible. Cliquer sur Préparer ce poste. Si le problème persiste, contacter le responsable informatique.'}
     finally {$client.Dispose();$handler.Dispose()}
-    $laws=@(Load-Laws); $sourceSummary.Text=if($laws.Count){($laws | ForEach-Object {$_.title}) -join '; '}else{'Aucune source importée. Ajouter les textes officiels avant une analyse juridique.'}
+    $laws=@(Load-Laws);$reviewed=@($laws | Where-Object {Test-ReviewedLaw $_});$sourceSummary.Text="$($reviewed.Count) source(s) relue(s) / $($laws.Count) importée(s)."
 }
 function Refresh-Results {
     $reportList.Items.Clear(); $script:reports=@(Get-ChildItem -LiteralPath (Safe 'vault/reports') -Filter '*.json' -File | Sort-Object LastWriteTime -Descending)
@@ -186,13 +197,13 @@ $analyze.Add_Click({Guard {
     $q=$questionInput.Text
     if(-not [string]::IsNullOrWhiteSpace($description.Text)){$q+="`nDescription fournie par l'utilisateur (allégations à vérifier) :`n"+$description.Text}
     if($q.Length -gt 8000){throw 'Description et question : 8 000 caractères maximum pour cette version.'}
-    if(@(Load-Laws).Count -eq 0){Message 'Aucune source juridique importée. Le résultat sera un brouillon non vérifié. Ajouter les textes dans Sources juridiques pour étayer les fondements.'}
+    if(@(Load-Laws | Where-Object {Test-ReviewedLaw $_}).Count -eq 0){Message 'Aucune source relue. Le programme préparera seulement une liste de vérifications, sans demander au modèle de produire une analyse juridique.'}
     Start-Work 'analyze' @{case_id=$cid;question=$q}
 }})
-$reportList.Add_SelectedIndexChanged({Guard {if($reportList.SelectedIndex -ge 0){$r=Read-Text $script:reports[$reportList.SelectedIndex].FullName | ConvertFrom-Json; $reportText.Text="BROUILLON NON VÉRIFIÉ — relecture par un avocat requise.`r`n`r`n"+$r.text}}})
-$draftList.Add_SelectedIndexChanged({Guard {$approve.Checked=$false;if($draftList.SelectedIndex -ge 0){$r=Read-Text $script:drafts[$draftList.SelectedIndex].FullName | ConvertFrom-Json;$directiveText.Text=$r.text}}})
+$reportList.Add_SelectedIndexChanged({Guard {if($reportList.SelectedIndex -ge 0){$r=Read-Text $script:reports[$reportList.SelectedIndex].FullName | ConvertFrom-Json; $reportText.Text=Get-ReportDisplay $r}}})
+$draftList.Add_SelectedIndexChanged({Guard {$approve.Checked=$false;if($draftList.SelectedIndex -ge 0){$r=Read-Text $script:drafts[$draftList.SelectedIndex].FullName | ConvertFrom-Json;$directiveText.Text=Get-ReportDisplay $r}}})
 $draftButton.Add_Click({Guard {Start-Work 'draft' @{question=$directiveQuestion.Text}}})
-$currentButton.Add_Click({Guard {$c=Current-Guidelines; $directiveText.Text=if($null -eq $c){'Aucune directive en vigueur.'}else{$c.text};$approve.Checked=$false;$draftList.SelectedIndex=-1}})
+$currentButton.Add_Click({Guard {$c=Current-Guidelines; $directiveText.Text=if($null -eq $c){'Aucune directive en vigueur.'}else{Get-ReportDisplay $c};$approve.Checked=$false;$draftList.SelectedIndex=-1}})
 $publish.Add_Click({Guard {
     if($draftList.SelectedIndex -lt 0 -or -not $approve.Checked -or [string]::IsNullOrWhiteSpace($reviewerInput.Text)){throw 'Sélectionner un projet, saisir le nom du relecteur et cocher la confirmation de relecture.'}
     $d=Read-Text $script:drafts[$draftList.SelectedIndex].FullName | ConvertFrom-Json
@@ -205,12 +216,15 @@ $export.Add_Click({Guard {
     if($d.ShowDialog() -eq 'OK'){[IO.File]::WriteAllText($d.FileName,$reportText.Text,[Text.UTF8Encoding]::new($true))};$d.Dispose()
 }})
 $saveSource.Add_Click({Guard {
-    if([string]::IsNullOrWhiteSpace($sourceTitle.Text) -or [string]::IsNullOrWhiteSpace($sourceText.Text)){throw 'Renseigner le titre et le texte officiel.'}
+    if([string]::IsNullOrWhiteSpace($sourceTitle.Text) -or [string]::IsNullOrWhiteSpace($sourceText.Text) -or [string]::IsNullOrWhiteSpace($sourceCode.Text) -or [string]::IsNullOrWhiteSpace($sourceArticle.Text)){throw 'Renseigner le titre, le code, la référence et le texte officiel.'}
+    if(-not $sourceReviewed.Checked -or [string]::IsNullOrWhiteSpace($sourceReviewer.Text) -or $sourceTopics.CheckedIndices.Count -eq 0){throw 'Vérifier la source, choisir ses thèmes et indiquer lʼavocat relecteur avant de confirmer.'}
     if(-not (Official $sourceUrl.Text)){throw 'Utiliser un lien HTTPS officiel autorisé (par exemple www.legifrance.gouv.fr).'}
     if($until.Checked -and $until.Value.Date -lt $from.Value.Date){throw 'La fin de validité précède son début.'}
     $sid='source-'+[guid]::NewGuid().ToString('N')
-    Write-Json (Safe ('vault/law/'+$sid+'.json')) @{id=$sid;title=$sourceTitle.Text;url=$sourceUrl.Text;retrieved_at=(Get-Date -Format 'yyyy-MM-dd');valid_from=$from.Value.ToString('yyyy-MM-dd');valid_to=$(if($until.Checked){$until.Value.ToString('yyyy-MM-dd')}else{$null});text=$sourceText.Text}
-    Refresh-Models;Message 'Source enregistrée localement. Vérifier son authenticité et ses dates avant utilisation.'
+    $source=[pscustomobject]@{id=$sid;title=$sourceTitle.Text;url=$sourceUrl.Text;retrieved_at=(Get-Date -Format 'yyyy-MM-dd');valid_from=$from.Value.ToString('yyyy-MM-dd');valid_to=$(if($until.Checked){$until.Value.ToString('yyyy-MM-dd')}else{$null});text=$sourceText.Text;code=$sourceCode.Text;article=$sourceArticle.Text;topics=@($sourceTopics.CheckedIndices | ForEach-Object {$script:topicKeys[$_]});reviewed_by=$sourceReviewer.Text;reviewed_at=(Get-Date -Format 'yyyy-MM-dd')}
+    $source | Add-Member -NotePropertyName reviewed_hash -NotePropertyValue (Get-SourceFingerprint $source)
+    Write-Json (Safe ('vault/law/'+$sid+'.json')) $source
+    $sourceReviewed.Checked=$false;Refresh-Models;Message 'Source enregistrée avec son empreinte de relecture. Cette déclaration locale nʼest pas une authentification indépendante.'
 }})
 $setup.Add_Click({Guard {Start-Work 'install'}})
 $check.Add_Click({Guard {Refresh-Models}});$refresh.Add_Click({Guard {Refresh-Models}})
