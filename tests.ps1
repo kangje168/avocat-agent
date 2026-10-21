@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . "$PSScriptRoot/agent.ps1"
 $passed=0
 function Reject($Label,[scriptblock]$Action) {

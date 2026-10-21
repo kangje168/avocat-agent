@@ -1,4 +1,4 @@
-param([switch]$Installation,[switch]$SmokeTest)
+﻿param([switch]$Installation,[switch]$SmokeTest)
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing

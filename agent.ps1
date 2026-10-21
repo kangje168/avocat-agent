@@ -1,4 +1,4 @@
-param(
+﻿param(
     [ValidateSet('init','status','sources','analyze','draft','publish','guidelines')][string]$Command='status',
     [string]$CaseId,
     [string]$Question,

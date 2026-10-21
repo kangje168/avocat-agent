@@ -1,4 +1,4 @@
-# Assistant juridique local pour cabinet d’avocats
+﻿# Assistant juridique local pour cabinet d’avocats
 
 Agent en français utilisant Ollama localement pour analyser les dossiers, rechercher dans un corpus de droit français et rédiger les directives communes du cabinet. Aucune télémétrie ni transmission automatique vers Internet. Les documents ne sont jamais envoyés à un moteur de recherche.
 

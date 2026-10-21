@@ -1,4 +1,4 @@
-# Assistant juridique du cabinet
+﻿# Assistant juridique du cabinet
 
 **Tout se fait dans une fenêtre en français. Vous n’avez aucune commande à saisir.**
 
