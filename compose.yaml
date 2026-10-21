@@ -1,0 +1,33 @@
+# Preparer les images et modeles AVANT les documents confidentiels.
+# Espace reseau partage sans interface reseau externe.
+services:
+  ollama:
+    image: ${OLLAMA_IMAGE:?Definir OLLAMA_IMAGE avec un digest approuve dans .env}
+    network_mode: none
+    environment:
+      OLLAMA_HOST: 127.0.0.1:11434
+      OLLAMA_NO_CLOUD: '1'
+      OLLAMA_MODELS: /models
+    volumes:
+      - ./runtime/models:/models:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /root/.ollama
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 256
+  agent:
+    image: ${POWERSHELL_IMAGE:?Definir POWERSHELL_IMAGE avec un digest Linux approuve dans .env}
+    network_mode: service:ollama
+    depends_on: [ollama]
+    working_dir: /workspace
+    entrypoint: [pwsh, -NoLogo, -NoProfile, -File, /workspace/agent.ps1]
+    volumes:
+      - ./agent.ps1:/workspace/agent.ps1:ro
+      - ./vault:/workspace/vault
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 128
