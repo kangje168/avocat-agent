@@ -14,6 +14,12 @@ Après échec de la génération juridique libre sur le modèle local 4B, le sch
 
 ## Ce qui change réellement
 
+Correction du contrôle par axe : une réserve sur la mission ou le prix ne suffit pas à qualifier une contestation d’exécution. Sans indice propre à l’axe, la qualification du modèle reste indéterminée. Une absence documentaire relatée est citée comme telle et ne prouve pas une absence de travail. Les extraits proposés par le modèle sont conservés séparément des appuis retenus.
+
+Correction du périmètre : le dossier de démonstration n’accepte plus de nouveaux imports. Un mélange entre démonstration et autres textes donne une préparation de séparation, sans appel au modèle. Un profil de prestations non établi ne reçoit plus automatiquement les trois moyens contractuels. Ces sorties ont le statut `preparation_only` ; elles ne valident aucune analyse d’une autre matière. Les anciens résultats ne sont pas réécrits et leur version est signalée à l’affichage.
+
+Ces corrections passent 89 contrôles logiciels et le contrôle de création de l’interface. Les traces conservées du précédent test Ollama à deux cas ont été relues avec le nouveau contrôle, sans nouvel appel au modèle. Cette vérification ne vaut pas réception juridique d’un nouveau dossier ni d’une autre matière.
+
 | Défaut observé | Traitement dans le programme |
 | --- | --- |
 | Bibliothèque personnelle vide | La première lecture reste accessible et affiche les fiches documentaires fournies. Le mode juridique avancé et la publication nécessitent des sources relues. |

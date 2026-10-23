@@ -41,8 +41,11 @@ function Get-ExplicitFinding([string]$Axis,$Catalog) {
                 $neg=($text -match '(contest|refus|reserve).{0,70}(command|mission|proposition)|proposition.{0,60}avant.{0,40}(commencement|debut)')
             }
             'execution'{
-                $pos=($text -match 'reception.{0,50}(conforme|accept)|confirm.{0,90}reception|accept.{0,70}(livrable|travaux)|(livrable|travaux).{0,70}(accept|valid)')
-                $neg=($text -match '(contest|refus|reserve|non conforme|malfacon).{0,60}(livrable|travaux|execution|prestation)|(livrable|travaux|prestation).{0,60}(contest|refus|non conforme|malfacon)')
+                $consentOnly=($text -match '\b(prix|tarif|montant|perimetre|devis|proposition)\b' -and $text -notmatch 'reception|remise|livraison|realisation|conformite|non conforme|malfacon|defaut|retard|inachev|incomplet|non.execut|non.realise')
+                if(-not $consentOnly){
+                    $pos=($text -match 'reception.{0,50}(conforme|accept)|confirm.{0,90}reception|accept.{0,70}(livrable|travaux)|(livrable|travaux).{0,70}(accept|valid)')
+                    $neg=($text -match '(contest|refus|reserve|non conforme|malfacon).{0,60}(livrable|travaux|execution|prestation)|(livrable|travaux|prestation).{0,60}(contest|refus|non conforme|malfacon)')
+                }
             }
             'prix'{
                 $pos=($text -match '(prix|tarif|montant).{0,60}(accept|convenu)|(accept|convenu).{0,60}(prix|tarif|montant)')
@@ -59,6 +62,19 @@ function Get-ExplicitFinding([string]$Axis,$Catalog) {
 }
 function New-StrategyPrompt($Bundle,$Cards,[string]$Request,$Plan) {
     return (@{demande=$Request;roles_declares=@(Get-PartyContext $Bundle.pieces);passages=@(New-StrategyCatalog $Bundle.pieces)} | ConvertTo-Json -Depth 10 -Compress)
+}
+function Get-DocumentaryGap([string]$Axis,$Catalog) {
+    $topics=@{accord='devis|bon de commande|contrat|accord';execution='livrable|justificatif de reception|trace de remise|document de reception';prix='prix|tarif|calcul|facture|montant'}
+    $items=@()
+    foreach($p in $Catalog){
+        if($p.intention_argumentative){continue}
+        foreach($clause in @((Normalize-ReviewText $p.extrait) -split '[.;!?]')){
+            # Une negation de reserve ou de defaut ne signifie pas qu une piece manque.
+            if($clause -match '\b(mais|cependant|toutefois)\b'){continue}
+            if($clause -match '\b(aucun[e]?|absence de|manque de|pas de|sans)\s+(devis|bon de commande|contrat|livrable|justificatif|document|piece)' -and $clause -match $topics[$Axis]){$items+=$p;break}
+        }
+    }
+    return @($items)
 }
 function New-FramedArgument([string]$Axis,[string]$Finding,$Evidence,$Ids,$Cards) {
     $titles=@{accord='Contestation de la preuve de la commande';execution='Contestation de l execution et de la reception';prix='Contestation du prix et du montant facture'}
@@ -96,7 +112,7 @@ function New-FramedArgument([string]$Axis,[string]$Finding,$Evidence,$Ids,$Cards
                 $a.reponse='Examiner seulement des ecarts ou reserves documentes, leur contenu et leur chronologie. Ne pas inventer un defaut, une reserve ou une contestation d authenticite pour contourner la reception acceptee.'
                 $a.action='Confronter le message de reception aux livrables et aux reserves existantes ; examiner les paiements et autres points reels du dossier avant de maintenir une contestation generale.'
             }elseif($Finding -ne 'contestation_declaree'){
-                $a.application='L absence de livrable dans les textes fournis, ou des indications contradictoires, ne permet pas de conclure a une absence de travail. La contestation d execution reste indeterminee jusqu a confrontation des travaux, remises et observations.'
+                $a.application='Les textes ne permettent pas de qualifier suffisamment l execution. Une absence documentaire ou des indications contradictoires ne permettent pas de conclure a une absence de travail. La contestation reste indeterminee jusqu a confrontation des travaux, remises et observations.'
             }
         }
         'prix'{
@@ -133,17 +149,24 @@ function Read-StrategyModel([string]$Raw,$Pieces,$Cards) {
             Check-Excerpt $selected[0].piece $selected[0].extrait $Pieces
             $evidence+=@{piece=$selected[0].piece;extrait=$selected[0].extrait}
         }
-        $finding=$a.constat;$ids=@($a.pieces)
+        $modelEvidence=@($evidence)
+        $finding='indetermine';$basis=@();$control='qualification_modele_non_corroboree'
         $explicit=Get-ExplicitFinding $a.axe $catalog
         if($null -ne $explicit){
-            $finding=$explicit.constat
-            foreach($p in $explicit.passages){
-                if($p.id -cnotin $ids){$ids+=$p.id;$evidence+=@{piece=$p.piece;extrait=$p.extrait}}
-            }
+            $finding=$explicit.constat;$basis=@($explicit.passages);$control='indices_textuels_a_confirmer'
+        }else{
+            $gaps=@(Get-DocumentaryGap $a.axe $catalog)
+            if($gaps.Count){$finding='absence_documentaire';$basis=$gaps;$control='absence_documentaire_relatee'}
         }
+        # Les passages doivent soutenir le meme axe. Une qualification du modele seule
+        # ne transforme pas une reserve de commande/prix en grief de prestation.
+        $ids=@($basis | ForEach-Object {$_.id})
+        $evidence=@($basis | ForEach-Object {@{piece=$_.piece;extrait=$_.extrait}})
         $argument=New-FramedArgument $a.axe $finding $evidence $ids $Cards
         $argument | Add-Member -NotePropertyName model_constat -NotePropertyValue $a.constat
-        $argument | Add-Member -NotePropertyName controle -NotePropertyValue $(if($null -ne $explicit){'indices_textuels_a_confirmer'}else{'qualification_modele_a_confirmer'})
+        $argument | Add-Member -NotePropertyName model_piece_ids -NotePropertyValue @($a.pieces)
+        $argument | Add-Member -NotePropertyName model_pieces -NotePropertyValue $modelEvidence
+        $argument | Add-Member -NotePropertyName controle -NotePropertyValue $control
         $accepted+=$argument
         $seen[[string]$a.axe]=$true
     }catch{$rejected+=$_.Exception.Message}}
@@ -160,8 +183,13 @@ function Render-Strategy($Strategy,$Bundle,$Cards,$Plan) {
     $findings=@{acceptation_declaree='Acceptation relatee';contestation_declaree='Contestation ou reserve relatee';absence_documentaire='Absence documentaire relatee';contradiction='Indications contradictoires';indetermine='Information insuffisante'}
     foreach($a in $Strategy.arguments){
         $r=@($Cards.items | Where-Object {$_.id -ceq $a.source_id})[0]
-        $control=if($a.controle -eq 'indices_textuels_a_confirmer'){'Indices explicites reperes dans les textes'}else{'Qualification proposee par le modele'}
+        $control=switch($a.controle){
+            'indices_textuels_a_confirmer' {'Indices explicites reperes pour cet axe'}
+            'absence_documentaire_relatee' {'Manque de pieces relate, sans constat d absence de prestation'}
+            default {'Qualification du modele non corroboree pour cet axe ; evaluation suspendue'}
+        }
         $lines+=@('',"## $($a.titre)","Lecture conditionnelle : $($findings[$a.constat])","Controle : $control — a confirmer sur les passages et les originaux.","Evaluation : $($labels[$a.evaluation])",'')
+        if(-not $a.pieces.Count){$lines+='Aucun passage suffisamment explicite retenu pour cet axe. Les extraits proposes par le modele restent dans les donnees de controle, sans etre presentes comme appuis de ce moyen.'}
         foreach($p in $a.pieces){$lines+="- [$($p.piece)] « $($p.extrait) »"}
         $lines+=@('',"Base documentaire : $($r.title)","Passage de la fiche (reformulation) : « $($a.passage_source) »","Texte officiel a consulter : $($r.url)",'',"Application conditionnelle : $($a.application)","Reponse adverse a anticiper : $($a.contre_argument)","Replique et limite : $($a.reponse)","Action proposee : $($a.action)","Element susceptible de changer cette evaluation : $($a.bascule)")
     }

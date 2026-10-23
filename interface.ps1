@@ -148,7 +148,8 @@ function Refresh-Results {
     foreach($r in $script:reports){
         $data=Read-Text $r.FullName | ConvertFrom-Json
         $kind='Première lecture'
-        if((Has-Field $data 'strategy') -and $null -ne $data.strategy){$kind="Arguments : $($data.strategy.arguments.Count) moyen(s)"}
+        if((Has-Field $data 'scope_status') -and $data.scope_status -ne 'service'){$kind='Préparation — cadre à compléter'}
+        elseif((Has-Field $data 'strategy') -and $null -ne $data.strategy){$kind="Arguments : $($data.strategy.arguments.Count) moyen(s)"}
         elseif((Has-Field $data 'model_called') -and $data.model_called){$kind='Première lecture — sans raisonnement retenu'}
         $reportList.Items.Add("$($r.LastWriteTime.ToString('dd/MM/yyyy HH:mm')) — $($data.case_id) — $kind") | Out-Null
     }

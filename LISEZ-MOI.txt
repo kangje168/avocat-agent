@@ -16,6 +16,10 @@ Double-cliquez sur **DEMARRER.cmd**. La fenêtre du cabinet s’ouvre.
 
 ### Analyser un dossier
 
+**Périmètre actuel :** le cadre automatique des moyens concerne les prestations de services. Les autres matières donnent une préparation du dossier, sans application forcée de ce cadre. Cette version ne fournit pas encore une analyse généraliste du droit français.
+
+Le dossier `demo-fictif` est réservé à l’exemple : créez un dossier distinct pour chaque affaire réelle. Un mélange d’exemple et d’autres textes est signalé avant tout appel au modèle.
+
 1. Dans **Mes dossiers**, cliquez sur **Nouveau dossier** et donnez-lui un nom.
 2. Cliquez sur **Ajouter des documents…**, ou écrivez les faits dans la grande zone de texte.
 3. Indiquez ce que vous souhaitez examiner. Une question de départ est déjà proposée.

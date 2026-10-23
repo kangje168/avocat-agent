@@ -8,6 +8,7 @@ $script:FactAxes=[ordered]@{
     chronologie=@{title='Chronologie a reconstituer';pattern='\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b|\b\d{1,2}\s+(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)\b|date|apres|avant|ulterieur|notification';question='Dans quel ordre les echanges et les travaux se sont-ils produits ?';action='Distinguer date du document, date d envoi, reception et evenement relate. Ne pas inventer une date de notification.'}
 }
 function Import-CaseDocument([string]$Case,[string]$Source) {
+    if((Id $Case) -eq 'demo-fictif'){throw 'Le dossier de demonstration est reserve a l exemple. Cliquer sur Nouveau dossier avant d ajouter vos documents.'}
     $folder=Safe ('vault/cases/'+(Id $Case))
     $file=Get-Item -LiteralPath $Source
     if($file.Extension -notin '.txt','.md' -or $file.Length -gt 2MB -or ($file.Attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'Utiliser un fichier TXT/MD, 2 Mo maximum, sans lien.'}
@@ -104,7 +105,7 @@ function Render-Dossier($Bundle,$Plan,$Cards,$Points,[string]$ModelNote,[bool]$H
     foreach($p in $Bundle.pieces){$lines+="- $($p.name) — texte fourni, sans authentification de l original."}
     if($Bundle.duplicates.Count){$lines+="$($Bundle.duplicates.Count) copie(s) identique(s) ignoree(s) pour cette analyse. Les fichiers restent conserves."}
     $lines+=@('',"Modele : $ModelNote",'',
-        '## Prochaine etape','Le bouton Analyser les arguments demande au modele local de confronter les pieces aux fiches : application, reponse adverse, replique et action. Les extraits et les references sont controles ; le raisonnement et les echeances restent a valider par un avocat.')
+        '## Prochaine etape','Le bouton Analyser les arguments combine une lecture locale des passages et un cadre conditionnel : application, reponse adverse, replique et action. Chaque axe exige ses propres appuis ; une qualification non corroboree reste indeterminee. Faire verifier les originaux, le cadre applicable et les echeances par l avocat.')
     return $lines -join "`n"
 }
 function New-OperationalDirective([string]$Request,$Plan) {
@@ -129,15 +130,46 @@ function New-OperationalDirective([string]$Request,$Plan) {
         '## Validation','Le relecteur confirme la pertinence de ces consignes avant publication. Toute conclusion juridique propre a un dossier reste soumise a une verification distincte.')
     return $lines -join "`n"
 }
+function Test-DemoMixture($Bundle) {
+    $demo=@($Bundle.pieces | Where-Object {(Normalize-ReviewText $_.text) -match 'dossier entierement fictif\s*-\s*demonstration'})
+    return $demo.Count -gt 0 -and $demo.Count -lt $Bundle.pieces.Count
+}
+function Render-UnscopedDossier($Bundle,[string]$Scope) {
+    $lines=@('# DOSSIER — PREPARATION ET VERIFICATION DU PERIMETRE',"Demande : $Question",'')
+    if($Scope -eq 'mixed_demo'){
+        $lines+=@('## Sources a separer','Un exemple marque comme demonstration est melange a d autres textes. Aucune analyse des moyens n est produite sur ce melange. Les conclusions de l exemple ne doivent pas etre attribuees a votre dossier.',
+            'Creer ou selectionner un dossier distinct et y ajouter seulement les documents de cette affaire. Les originaux du dossier actuel restent conserves.')
+    }else{
+        $lines+=@('## Cadre des prestations non applique','Le profil de prestation de services n est pas etabli par le classement actuel. Le cadre commande / execution / prix ne sera pas applique par defaut. Ce classement limite ne constitue pas une qualification juridique.',
+            'Le dossier reste disponible pour instruction. La presente sortie ne constitue pas une analyse des responsabilites, des demandes ou des voies de recours.',
+            '','## Textes fournis a examiner')
+        foreach($p in $Bundle.pieces){
+            $excerpt=$p.text.Substring(0,[Math]::Min(1200,$p.text.Length))
+            $lines+=@('',"### $($p.name)",$excerpt)
+            if($p.text.Length -gt 1200){$lines+='Extrait de lecture limite ; le fichier integral reste conserve dans ce dossier.'}
+        }
+        $lines+=@('','## Points a instruire',
+            '- Identifier le client, les parties, leur qualite pour agir et les demandes exactes ; distinguer chaque personne lesee et chaque prejudice.',
+            '- Reconstituer les faits et la chronologie a partir des pieces ; distinguer allegations, originaux consultes et hypotheses.',
+            '- Obtenir les actes recus, les demandes adverses, les dates de notification et les pieces utiles a la defense comme a la position adverse.',
+            '- Faire qualifier les fondements, les conditions des demandes reconventionnelles et les mesures envisagees par l avocat responsable, avec les textes officiels pertinents. Aucun delai ou droit a obtenir une mesure n est presume.')
+    }
+    $lines+=@('','## Inventaire local')
+    foreach($p in $Bundle.pieces){$lines+="- $($p.name) — texte fourni, original non authentifie."}
+    $lines+=@('','Aucun appel au modele de prestations ; aucune conclusion juridique tiree des fiches sur les contrats. Ajouter les sources et le cadre adaptes a cette affaire avant une analyse juridique.')
+    return $lines -join "`n"
+}
 function Invoke-Dossier([bool]$Deepen) {
     if([string]::IsNullOrWhiteSpace($Question) -or $Question.Length -gt 8000){throw 'Indiquer une question (8000 caracteres maximum).'}
     if($CaseDescription.Length -gt 20000){throw 'Description : 20 000 caracteres maximum.'}
     $bundle=Read-CaseBundle $CaseId $CaseDescription $Question
     $inputText=($bundle.pieces | ForEach-Object {$_.text}) -join "`n"
-    $plan=New-ReviewPlan $inputText;$cards=Load-ReferenceCards $plan
+    $plan=New-ReviewPlan $inputText
+    $scope=if(Test-DemoMixture $bundle){'mixed_demo'}elseif(-not $plan.service){'outside_service_scope'}else{'service'}
+    $cards=if($scope -eq 'service'){Load-ReferenceCards $plan}else{[pscustomobject]@{items=@();prepared_at='';scope=$scope}}
     $points=@(Get-FactualPoints $bundle.pieces);$modelUsed=$false;$modelNote='Lecture locale immediate, sans attente du modele.';$modelData=$null;$inference=$null
     $uid=[guid]::NewGuid().ToString('N')
-    if($Deepen){
+    if($Deepen -and $scope -eq 'service'){
         try{
             if($inputText.Length -gt 24000){throw 'Documents trop longs pour l approfondissement ; la premiere lecture est conservee.'}
             $req=New-StrategyPrompt $bundle $cards $Question $plan
@@ -155,9 +187,10 @@ function Invoke-Dossier([bool]$Deepen) {
             if(Get-Variable raw -Scope Local -ErrorAction SilentlyContinue){Write-Json (Safe ('vault/rejected/'+$uid+'.json')) @{reason=$_.Exception.Message;raw=$raw;confidential=$true}}
         }
     }
-    $answer=Render-Dossier $bundle $plan $cards $points $modelNote ($null -ne $modelData)
+    if($scope -eq 'service'){$answer=Render-Dossier $bundle $plan $cards $points $modelNote ($null -ne $modelData)}
+    else{$answer=Render-UnscopedDossier $bundle $scope;$modelNote='Preparation uniquement ; cadre de prestations non applique.'}
     if($null -ne $modelData){$answer=(Render-Strategy $modelData $bundle $cards $plan)+"`n"+$answer}
-    $record=@{id=$uid;status='draft';case_id=$CaseId;created_at=[datetime]::UtcNow.ToString('o');as_of=$AsOf;question=$Question;model=$Model;model_called=$modelUsed;model_note=$modelNote;inference=$inference;strategy=$modelData;strategy_version='2026-10-23.2';reference_hash=(Hash ($cards.items | ConvertTo-Json -Depth 8 -Compress));text=$answer;content_hash=(Hash $answer);quality_version=$script:QualityVersion;quality_status='dossier_ready';pieces=@($bundle.pieces | ForEach-Object {@{name=$_.name;sha256=$_.sha256}});duplicates=$bundle.duplicates;references=$cards.items;points=$points;sources=@()}
+    $record=@{id=$uid;status='draft';case_id=$CaseId;created_at=[datetime]::UtcNow.ToString('o');as_of=$AsOf;question=$Question;model=$Model;model_called=$modelUsed;model_note=$modelNote;inference=$inference;strategy=$modelData;strategy_version='2026-10-23.3';reference_hash=(Hash ($cards.items | ConvertTo-Json -Depth 8 -Compress));text=$answer;content_hash=(Hash $answer);quality_version=$script:QualityVersion;quality_status=$(if($scope -eq 'service'){'dossier_ready'}else{'preparation_only'});scope_status=$scope;pieces=@($bundle.pieces | ForEach-Object {@{name=$_.name;sha256=$_.sha256}});duplicates=$bundle.duplicates;references=$cards.items;points=$points;sources=@()}
     Write-Json (Safe ('vault/reports/'+$uid+'.json')) $record
     "Enregistre : vault/reports/$uid.json`n`n$answer"
 }

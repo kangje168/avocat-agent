@@ -6,6 +6,10 @@ Version d’usage : `analyze` produit une première lecture immédiatement ; `de
 
 ## Installation et utilisation
 
+Le cadre des moyens est limité aux prestations de services reconnues par le classement actuel. `scope_status` vaut `service`, `mixed_demo` ou `outside_service_scope`. Dans les deux derniers cas, aucun modèle de prestations n’est appelé : une préparation et un inventaire remplacent les moyens, sans fiches contractuelles imposées. La détection par mots-clés reste limitée, notamment pour les autres langues et les formulations ambiguës ; elle ne constitue pas une qualification juridique.
+
+Une proposition du modèle sans indice propre à son axe reste indéterminée. Les seuls passages corroborant cet axe sont affichés comme appuis ; `model_constat`, `model_piece_ids` et `model_pieces` conservent la proposition initiale pour contrôle. Les anciennes versions du cadre sont signalées dans l’affichage des rapports historiques.
+
 Prérequis : Windows PowerShell 5.1 ou PowerShell 7 et Ollama. Préparer les modèles avant d’ajouter des données confidentielles. Le modèle par défaut `qwen2.5:14b` doit être installé séparément ; choisir un autre modèle local avec `-Model` selon le matériel et les résultats d’évaluation.
 
 ```powershell

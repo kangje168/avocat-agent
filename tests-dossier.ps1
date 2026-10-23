@@ -69,6 +69,30 @@ $checked=Read-StrategyModel ($intent | ConvertTo-Json -Depth 8) $intentPieces $c
 Check 'souhait de nier ne devient pas preuve de non execution' ($checked.arguments.Count -eq 0)
 $negatives=@(New-StrategyCatalog @(@{name='n.txt';text="Aucun bon de commande signe.`nLe prix n est pas accepte.`nAucune reception conforme n est etablie."}))
 Check 'negations ne deviennent pas acceptations' ($null -eq (Get-ExplicitFinding 'accord' $negatives) -and $null -eq (Get-ExplicitFinding 'execution' $negatives) -and (Get-ExplicitFinding 'prix' $negatives).constat -ne 'acceptation_declaree')
+$crossAxis=@(@{name='expose-test.txt';text="Le client conteste avoir accepte le prix ou le perimetre de la mission.`nUn courriel dit : Envoyez une proposition detaillee avant tout commencement.`nAucun devis signe, bon de commande, livrable ni justificatif de reception n'est disponible dans ce dossier."})
+$wrongExecution=@{arguments=@(@{axe='execution';constat='contestation_declaree';pieces=@('p1-1','p1-2')})}
+$checked=Read-StrategyModel ($wrongExecution | ConvertTo-Json -Depth 8) $crossAxis $cards
+Check 'reserve sur commande et prix ne devient pas grief execution' ($checked.arguments.Count -eq 1 -and $checked.arguments[0].evaluation -eq 'indetermine')
+Check 'absence de livrable citee pour le constat documentaire' ($checked.arguments[0].constat -eq 'absence_documentaire' -and 'p1-3' -in $checked.arguments[0].piece_ids)
+Check 'appuis utiles separes des propositions du modele' ($checked.arguments[0].pieces.Count -eq 1 -and $checked.arguments[0].model_pieces.Count -eq 2)
+$rendered=Render-Strategy $checked ([pscustomobject]@{pieces=$crossAxis}) $cards (New-ReviewPlan 'prestation conseil')
+Check 'rapport ne suggere plus de grief execution non decrit' ($rendered.Contains('Evaluation : Indetermine') -and -not $rendered.Contains('Si les griefs de prestation relates'))
+$unrelated=@(@{name='prix.txt';text='Le prix de la mission a ete accepte.'})
+foreach($unsupported in @('acceptation_declaree','contestation_declaree','contradiction')){
+    $raw=@{arguments=@(@{axe='execution';constat=$unsupported;pieces=@('p1-1')})}
+    $checked=Read-StrategyModel ($raw | ConvertTo-Json -Depth 8) $unrelated $cards
+    Check ("qualification execution sans appui suspendue : $unsupported") ($checked.arguments[0].evaluation -eq 'indetermine' -and $checked.arguments[0].constat -eq 'indetermine' -and $checked.arguments[0].model_constat -eq $unsupported)
+}
+$realGrief=@(@{name='grief.txt';text='Le client conteste la conformite des livrables remis.'})
+$checked=Read-StrategyModel ($wrong | ConvertTo-Json -Depth 8).Replace('p1-4','p1-1') $realGrief $cards
+Check 'grief de livrables conserve sur son propre axe' ($checked.arguments.Count -eq 1 -and $checked.arguments[0].evaluation -eq 'a_instruire')
+$priceOnly=@(@{name='prix.txt';text='Le client conteste le prix de la prestation.'})
+$raw=@{arguments=@(@{axe='execution';constat='contestation_declaree';pieces=@('p1-1')})}
+$checked=Read-StrategyModel ($raw | ConvertTo-Json -Depth 8) $priceOnly $cards
+Check 'mot prestation ne transforme pas litige prix en grief execution' ($checked.arguments[0].evaluation -eq 'indetermine')
+$priceAndDefect=@(@{name='grief.txt';text='Le client conteste la conformite des livrables et leur prix.'})
+$checked=Read-StrategyModel ($raw | ConvertTo-Json -Depth 8) $priceAndDefect $cards
+Check 'grief concret conserve meme si prix mentionne' ($checked.arguments[0].evaluation -eq 'a_instruire')
 $samplePoints=@(Get-FactualPoints $samplePieces)
 Check 'montant et date de facture conserves' (@($samplePoints | Where-Object {$_.axe -eq 'montant' -and $_.extrait.Contains('18 000')}).Count -eq 1 -and @($samplePoints | Where-Object {$_.axe -eq 'chronologie' -and $_.extrait.Contains('10 septembre')}).Count -eq 1)
 Check 'roles ancres dans les textes' (@(Get-PartyContext $samplePieces).Count -eq 2)
@@ -78,3 +102,17 @@ $Command='draft';$Question='Preparer des consignes de travail pour les prestatio
 Check 'consignes distinguent organisation et droit' ($draft.quality_status -eq 'operational_ready' -and $draft.text.Contains('ne fixe aucune regle de droit'))
 $Command='publish';$DraftId=$draft.id;$Reviewer='Avocat relecteur';$ExpectedHash=$draft.content_hash;$null=Main
 Check 'publication operationnelle avec relecture' ((Current-Guidelines).id -eq $draft.id)
+Reject 'import dans le dossier de demonstration refuse' {Import-CaseDocument 'demo-fictif' $source}
+$mixed=[pscustomobject]@{pieces=@(@{name='expose.txt';text='DOSSIER ENTIEREMENT FICTIF - DEMONSTRATION'},@{name='reel.txt';text='Texte d une autre affaire.'})}
+Check 'melange demonstration et autre affaire detecte' (Test-DemoMixture $mixed)
+[IO.Directory]::CreateDirectory((Safe 'vault/cases/melange')) | Out-Null
+[IO.File]::WriteAllText((Safe 'vault/cases/melange/expose.txt'),'DOSSIER ENTIEREMENT FICTIF - DEMONSTRATION : prestation de conseil.')
+[IO.File]::WriteAllText((Safe 'vault/cases/melange/reel.txt'),'Texte d une autre affaire.')
+$Command='deepen';$CaseId='melange';$CaseDescription='';$Question='Identifier les points a examiner.';$before=$script:modelCalls
+$report=Run-Report
+Check 'melange non envoye au modele et sans analyse des moyens' ($report.scope_status -eq 'mixed_demo' -and $report.quality_status -eq 'preparation_only' -and $script:modelCalls -eq $before -and $null -eq $report.strategy -and $report.references.Count -eq 0)
+[IO.Directory]::CreateDirectory((Safe 'vault/cases/autre')) | Out-Null
+[IO.File]::WriteAllText((Safe 'vault/cases/autre/voisin.txt'),'Un voisin entre dans un jardin prive. La famille demande une mesure de protection.')
+$CaseId='autre';$before=$script:modelCalls;$report=Run-Report
+Check 'autre domaine ne devient pas une prestation de service' ($report.scope_status -eq 'outside_service_scope' -and $script:modelCalls -eq $before -and $null -eq $report.strategy -and -not $report.text.Contains('article 1165') -and $report.text.Contains('Un voisin entre'))
+Check 'ancienne qualification signalee comme historique' ((Get-ReportDisplay ([pscustomobject]@{quality_version=$script:QualityVersion;strategy_version='2026-10-23.2';strategy=@{};text='ANCIEN TEXTE'})).StartsWith('RAPPORT HISTORIQUE'))

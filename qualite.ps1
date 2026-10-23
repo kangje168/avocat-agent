@@ -171,5 +171,6 @@ function Render-ModelReview($Data,$Laws,$Pieces,$Plan) {
 }
 function Get-ReportDisplay($Record) {
     if(-not (Has-Field $Record 'quality_version') -or $Record.quality_version -ne $script:QualityVersion){return 'Ancien format de rapport. Cliquer sur Premiere lecture rapide pour obtenir la nouvelle lecture du dossier, sans bibliotheque a remplir. Le fichier historique reste conserve localement.'}
+    if((Has-Field $Record 'strategy_version') -and $Record.strategy_version -ne '2026-10-23.3' -and (Has-Field $Record 'strategy') -and $null -ne $Record.strategy){return "RAPPORT HISTORIQUE : regenerer apres verification du dossier choisi et des appuis propres a chaque axe. Les qualifications de cette version ne sont pas validees par les nouveaux controles.`r`n`r`n"+$Record.text}
     return $Record.text
 }
