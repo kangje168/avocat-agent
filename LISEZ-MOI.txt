@@ -19,12 +19,12 @@ Double-cliquez sur **DEMARRER.cmd**. La fenêtre du cabinet s’ouvre.
 1. Dans **Mes dossiers**, cliquez sur **Nouveau dossier** et donnez-lui un nom.
 2. Cliquez sur **Ajouter des documents…**, ou écrivez les faits dans la grande zone de texte.
 3. Indiquez ce que vous souhaitez examiner. Une question de départ est déjà proposée.
-4. Cliquez sur **Lancer l’analyse**. Une première lecture est préparée immédiatement, sans attendre Ollama.
+4. Cliquez sur **Analyser les arguments** et patientez. Ollama travaille sur ce poste ; plusieurs minutes peuvent être nécessaires.
 5. Le résultat apparaît dans **Rapports**. Vous pouvez le relire et cliquer sur **Enregistrer une copie…**.
 
 **Vous n’avez pas besoin de remplir une bibliothèque juridique pour commencer.** Le rapport contient des passages de vos documents, les questions à confronter, des demandes de pièces et six fiches de référence sur les contrats civils et commerciaux, avec leurs liens officiels. Ces fiches sont des reformulations préparées le 21 octobre 2026 ; leur version et leur applicabilité restent à vérifier pour votre dossier.
 
-Pour un complément facultatif, cliquez sur **Approfondir avec Ollama**. Le modèle local sélectionne d’autres passages utiles dans vos textes ; les extraits doivent correspondre mot pour mot. Cette étape peut prendre plusieurs minutes. Si le modèle échoue, votre première lecture et les références restent disponibles. Vous pouvez lire les rapports pendant le traitement.
+Le bouton **Première lecture rapide** donne immédiatement des extraits et des questions, sans raisonnement du modèle. Pour une analyse, utilisez **Analyser les arguments**. L’analyse combine une lecture locale des passages et un cadre conditionnel vérifiable : commande, exécution et prix. Elle distingue acceptation relatée, contestation et absence de pièces, puis présente les extraits, la base documentaire, son application, la réponse adverse, une réplique et une action. Une acceptation confirmée doit affaiblir une négation générale, sans transformer le récit en preuve ni conclure automatiquement à une dette. Les extraits et les références sont comparés aux textes fournis ; la pertinence juridique reste à faire vérifier. Cette étape peut prendre plusieurs minutes. Si un moyen échoue au contrôle, il est écarté et la couverture incomplète est signalée. Si aucun moyen ne passe, votre première lecture reste disponible avec la raison de cet échec. Vous pouvez lire les rapports pendant le traitement.
 
 Les fichiers importés plusieurs fois sont reconnus comme doublons. Les anciennes copies restent sur le disque, mais ne comptent qu’une fois dans l’analyse. Aucun fichier n’est supprimé.
 

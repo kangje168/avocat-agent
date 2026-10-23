@@ -48,9 +48,9 @@ $questionInput.Text='Identifier les moyens licites de défense, les faiblesses d
 $null=Label $page 'Modèle local' 20 435 150 25
 $models=List $page 170 432 440
 $refresh=Button $page 'Actualiser' 630 428 130
-$analyze=Button $page 'Lancer lʼanalyse' 20 485 260
-$deepen=Button $page 'Approfondir avec Ollama' 300 485 280
-$null=Label $page 'Première lecture immédiate, avec les références fournies. Le complément Ollama est facultatif et peut prendre plusieurs minutes.' 20 535 880 55
+$analyze=Button $page 'Première lecture rapide' 20 485 260
+$deepen=Button $page 'Analyser les arguments' 300 485 280
+$null=Label $page 'Première lecture immédiate. Analyser les arguments confronte les pièces aux fiches avec Ollama : plusieurs minutes possibles.' 20 535 880 55
 $page=$pages['Rapports']
 $reportList=List $page 20 20 890
 $reportText=Box $page 20 65 890 465 $true
@@ -103,8 +103,8 @@ $helpText.Text=@'
 AU QUOTIDIEN
 1. Ouvrir Mes dossiers et créer un dossier.
 2. Ajouter les documents TXT/MD, ou écrire les faits dans la grande zone.
-3. Cliquer sur Lancer lʼanalyse. Lire le résultat dans Rapports.
-4. Facultatif : Approfondir avec Ollama pour sélectionner dʼautres extraits.
+3. Cliquer sur Analyser les arguments et patienter ; lire le résultat dans Rapports.
+4. Pour un aperçu immédiat sans modèle : Première lecture rapide (extraits et questions seulement).
 5. Faire vérifier les conclusions juridiques par un avocat avant toute décision.
 
 La première lecture fonctionne sans modèle et sans ajouter de textes de loi. Six fiches publiques de référence sont incluses. Les doublons sont regroupés sans supprimer vos fichiers.
@@ -129,7 +129,7 @@ function Selected-Case {
 }
 function Refresh-Models {
     $handler=[Net.Http.HttpClientHandler]::new(); $handler.UseProxy=$false; $handler.AllowAutoRedirect=$false
-    $client=[Net.Http.HttpClient]::new($handler); $client.Timeout=[TimeSpan]::FromSeconds(3)
+    $client=[Net.Http.HttpClient]::new($handler); $client.Timeout=[TimeSpan]::FromSeconds(15)
     try {
         $r=$client.GetAsync('http://127.0.0.1:11434/api/tags').GetAwaiter().GetResult(); $r.EnsureSuccessStatusCode() | Out-Null
         $tags=$r.Content.ReadAsStringAsync().GetAwaiter().GetResult() | ConvertFrom-Json
@@ -138,14 +138,20 @@ function Refresh-Models {
         if($models.Items.Count) {$models.SelectedIndex=0; for($i=0;$i -lt $models.Items.Count;$i++){if($models.Items[$i] -eq 'qwen3.5:4b'){$models.SelectedIndex=$i}}}
         $diagnostic.Text="Ollama : disponible sur ce poste.`r`nModèles locaux : $($models.Items.Count).`r`nSix fiches de référence fournies ; première lecture disponible sans modèle.`r`nDonnées : $Root\vault`r`nInterface native : contrôles applicatifs, sans isolation système."
         if(-not $models.Items.Count){$diagnostic.AppendText("`r`nCliquer sur Préparer ce poste pour télécharger le modèle.")}
-    } catch {$diagnostic.Text='Ollama indisponible. Cliquer sur Préparer ce poste. Si le problème persiste, contacter le responsable informatique.'}
+    } catch {$diagnostic.Text='Ollama ne répond pas pour le moment. Attendre la fin du traitement en cours, puis cliquer sur Vérifier ce poste. Si le problème persiste, contacter le responsable informatique.'}
     finally {$client.Dispose();$handler.Dispose()}
     try{$laws=@(Load-Laws);$reviewed=@($laws | Where-Object {Test-ReviewedLaw $_});$sourceSummary.Text="$($reviewed.Count) source(s) complémentaire(s) relue(s)."}
     catch{$sourceSummary.Text='Une source complémentaire est invalide. La première lecture reste disponible.'}
 }
 function Refresh-Results {
     $reportList.Items.Clear(); $script:reports=@(Get-ChildItem -LiteralPath (Safe 'vault/reports') -Filter '*.json' -File | Sort-Object LastWriteTime -Descending)
-    foreach($r in $script:reports){$data=Read-Text $r.FullName | ConvertFrom-Json; $reportList.Items.Add("$($r.LastWriteTime.ToString('dd/MM/yyyy HH:mm')) — $($data.case_id)") | Out-Null}
+    foreach($r in $script:reports){
+        $data=Read-Text $r.FullName | ConvertFrom-Json
+        $kind='Première lecture'
+        if((Has-Field $data 'strategy') -and $null -ne $data.strategy){$kind="Arguments : $($data.strategy.arguments.Count) moyen(s)"}
+        elseif((Has-Field $data 'model_called') -and $data.model_called){$kind='Première lecture — sans raisonnement retenu'}
+        $reportList.Items.Add("$($r.LastWriteTime.ToString('dd/MM/yyyy HH:mm')) — $($data.case_id) — $kind") | Out-Null
+    }
     if($reportList.Items.Count){$reportList.SelectedIndex=0}
     $draftList.Items.Clear(); $script:drafts=@(Get-ChildItem -LiteralPath (Safe 'vault/drafts') -Filter '*.json' -File | Sort-Object LastWriteTime -Descending)
     foreach($d in $script:drafts){$draftList.Items.Add("Projet du $($d.LastWriteTime.ToString('dd/MM/yyyy HH:mm')) — $($d.BaseName.Substring(0,8))") | Out-Null}

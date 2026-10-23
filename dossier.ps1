@@ -59,7 +59,9 @@ function Get-FactualPoints($Pieces) {
                 }
             }
         }
-        $points+=@($candidates | Sort-Object { $_.score } -Descending | Select-Object -First 2 | ForEach-Object {$_.point})
+        # Conserver les dates et les montants meme si plusieurs autres lignes parlent de devis.
+        foreach($c in $candidates){if($axis -in @('montant','chronologie') -and $c.point.extrait -match '\d'){$c.score+=4}}
+        $points+=@($candidates | Sort-Object { $_.score } -Descending | Select-Object -First 8 | ForEach-Object {$_.point})
     }
     return $points
 }
@@ -73,7 +75,7 @@ function Read-FactualModel([string]$Raw,$Pieces) {
     foreach($p in $data.points){Check-Fields $p @('axe','piece','extrait') 'point';if($p.axe -notin @($script:FactAxes.Keys) -or $p.extrait.Length -gt 900){throw 'Axe ou extrait invalide'};Check-Excerpt $p.piece $p.extrait $Pieces}
     return @($data.points)
 }
-function Render-Dossier($Bundle,$Plan,$Cards,$Points,[string]$ModelNote) {
+function Render-Dossier($Bundle,$Plan,$Cards,$Points,[string]$ModelNote,[bool]$HasStrategy=$false) {
     $lines=@('# DOSSIER — PREMIERE LECTURE',"Analyse demandee : $Question",'',
         '## Ce que le dossier permet deja de travailler',
         'Les passages ci-dessous proviennent des textes fournis. Ils servent a preparer les questions et les demandes de pieces ; ils ne prouvent pas, a eux seuls, les faits relates.')
@@ -85,11 +87,13 @@ function Render-Dossier($Bundle,$Plan,$Cards,$Points,[string]$ModelNote) {
         if($items.Count -eq 0){$lines+='Aucun passage selectionne sur ce point ; cela ne signifie pas qu aucune preuve existe.'}
         $lines+=@("Question a examiner : $($info.question)","Prochaine action : $($info.action)")
     }
-    $lines+=@('','## Arguments a confronter aux pieces')
+    if(-not $HasStrategy){
+    $lines+=@('','## Questions generales de preparation (sans raisonnement du modele)')
     if($Plan.service){$lines+=@('- Pour contester la demande : chercher les reserves sur le lancement de la mission, les limites de son perimetre, les ecarts entre travaux annonces et traces disponibles, et le detail du montant.',
         '- Pour anticiper la reponse adverse : rechercher aussi les acceptations ulterieures, les usages des travaux et les traces de remise susceptibles de soutenir la demande.',
         '- Ces pistes ne permettent pas de dire automatiquement que le contrat est inexistant, que la prestation n a pas ete faite ou que le prix n est pas du.')}
     else{$lines+='Comparer les versions des parties, les documents contemporains et les pieces manquantes avant de retenir une interpretation.'}
+    }
     $lines+=@('','## References officielles pour approfondir',
         "Fiches documentaires preparees le $($Cards.prepared_at). Reformulations, pas citations litterales des articles ; verifier la version et l applicabilite dans les liens officiels. Le lot fourni concerne les contrats civils/commerciaux et n est pas exhaustif.")
     foreach($r in $Cards.items){$lines+=@('',"### $($r.title)",$r.note,"A verifier dans le dossier : $($r.question)","Source officielle : $($r.url)")}
@@ -100,7 +104,7 @@ function Render-Dossier($Bundle,$Plan,$Cards,$Points,[string]$ModelNote) {
     foreach($p in $Bundle.pieces){$lines+="- $($p.name) — texte fourni, sans authentification de l original."}
     if($Bundle.duplicates.Count){$lines+="$($Bundle.duplicates.Count) copie(s) identique(s) ignoree(s) pour cette analyse. Les fichiers restent conserves."}
     $lines+=@('',"Modele : $ModelNote",'',
-        '## Prochaine etape','Ouvrir ou reunir les pieces manquantes, puis confronter les passages ci-dessus. Le bouton Approfondir avec Ollama est facultatif : il selectionne des extraits supplementaires sans inventer de faits ou de regles. Les conclusions juridiques et les echeances restent a valider par un avocat.')
+        '## Prochaine etape','Le bouton Analyser les arguments demande au modele local de confronter les pieces aux fiches : application, reponse adverse, replique et action. Les extraits et les references sont controles ; le raisonnement et les echeances restent a valider par un avocat.')
     return $lines -join "`n"
 }
 function New-OperationalDirective([string]$Request,$Plan) {
@@ -131,23 +135,29 @@ function Invoke-Dossier([bool]$Deepen) {
     $bundle=Read-CaseBundle $CaseId $CaseDescription $Question
     $inputText=($bundle.pieces | ForEach-Object {$_.text}) -join "`n"
     $plan=New-ReviewPlan $inputText;$cards=Load-ReferenceCards $plan
-    $points=@(Get-FactualPoints $bundle.pieces);$modelUsed=$false;$modelNote='Lecture locale immediate, sans attente du modele.';$modelData=$null
+    $points=@(Get-FactualPoints $bundle.pieces);$modelUsed=$false;$modelNote='Lecture locale immediate, sans attente du modele.';$modelData=$null;$inference=$null
     $uid=[guid]::NewGuid().ToString('N')
     if($Deepen){
         try{
             if($inputText.Length -gt 24000){throw 'Documents trop longs pour l approfondissement ; la premiere lecture est conservee.'}
-            $req=@{task='reperer des passages utiles a confronter';pieces=$bundle.pieces;axes=$script:FactAxes} | ConvertTo-Json -Depth 10
-            $modelUsed=$true;$raw=Ask-Local $req (New-FactualSchema $bundle.pieces) 'factual' 1400
-            $modelData=@(Read-FactualModel $raw $bundle.pieces)
-            foreach($point in $modelData){if(-not @($points | Where-Object {$_.axe -eq $point.axe -and $_.piece -eq $point.piece -and $_.extrait -ceq $point.extrait}).Count){$points+=$point}}
-            $modelNote='Selection Ollama controlee : chaque extrait est present dans les textes fournis. Aucun fait ou droit nouveau genere.'
+            $req=New-StrategyPrompt $bundle $cards $Question $plan
+            $script:LastInference=$null
+            $modelUsed=$true;$raw=Ask-Local $req (New-StrategySchema $bundle.pieces $cards) 'strategy' 900
+            $inference=$script:LastInference
+            $modelData=Read-StrategyModel $raw $bundle.pieces $cards
+            if($modelData.arguments.Count -eq 0){throw ('Aucun moyen retenu : '+($modelData.rejected -join '; '))}
+            $modelNote='Qualification locale et cadre conditionnel : '+$modelData.arguments.Count+' moyen(s) avec ancrages controles ; interpretation non certifiee.'
+            if($modelData.rejected.Count){Write-Json (Safe ('vault/rejected/'+$uid+'.json')) @{reason=$modelData.rejected;raw=$raw;confidential=$true}}
         }catch{
-            $modelNote='Le complement du modele n a pas ete retenu. La lecture du dossier et les references ci-dessus restent disponibles.'
+            if($modelUsed){$inference=$script:LastInference}
+            $modelData=$null
+            $modelNote='Le raisonnement du modele n a pas ete retenu : '+$_.Exception.Message+'. La premiere lecture reste disponible ; aucune strategie validee ne peut en etre deduite.'
             if(Get-Variable raw -Scope Local -ErrorAction SilentlyContinue){Write-Json (Safe ('vault/rejected/'+$uid+'.json')) @{reason=$_.Exception.Message;raw=$raw;confidential=$true}}
         }
     }
-    $answer=Render-Dossier $bundle $plan $cards $points $modelNote
-    $record=@{id=$uid;status='draft';case_id=$CaseId;created_at=[datetime]::UtcNow.ToString('o');as_of=$AsOf;question=$Question;model=$Model;model_called=$modelUsed;model_note=$modelNote;text=$answer;content_hash=(Hash $answer);quality_version=$script:QualityVersion;quality_status='dossier_ready';pieces=@($bundle.pieces | ForEach-Object {@{name=$_.name;sha256=$_.sha256}});duplicates=$bundle.duplicates;references=$cards.items;points=$points;sources=@()}
+    $answer=Render-Dossier $bundle $plan $cards $points $modelNote ($null -ne $modelData)
+    if($null -ne $modelData){$answer=(Render-Strategy $modelData $bundle $cards $plan)+"`n"+$answer}
+    $record=@{id=$uid;status='draft';case_id=$CaseId;created_at=[datetime]::UtcNow.ToString('o');as_of=$AsOf;question=$Question;model=$Model;model_called=$modelUsed;model_note=$modelNote;inference=$inference;strategy=$modelData;strategy_version='2026-10-23.2';reference_hash=(Hash ($cards.items | ConvertTo-Json -Depth 8 -Compress));text=$answer;content_hash=(Hash $answer);quality_version=$script:QualityVersion;quality_status='dossier_ready';pieces=@($bundle.pieces | ForEach-Object {@{name=$_.name;sha256=$_.sha256}});duplicates=$bundle.duplicates;references=$cards.items;points=$points;sources=@()}
     Write-Json (Safe ('vault/reports/'+$uid+'.json')) $record
     "Enregistre : vault/reports/$uid.json`n`n$answer"
 }

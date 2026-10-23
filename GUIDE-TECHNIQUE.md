@@ -2,7 +2,7 @@
 
 Agent en français utilisant Ollama localement pour analyser les dossiers, rechercher dans un corpus de droit français et rédiger les directives communes du cabinet. Aucune télémétrie ni transmission automatique vers Internet. Les documents ne sont jamais envoyés à un moteur de recherche.
 
-Version d’usage : `analyze` produit une première lecture immédiatement ; `deepen` ajoute une sélection d’extraits via Ollama. Les deux fonctionnent sans sources personnelles relues. `corpus-reference.json` contient six fiches de recherche publiques, distinctes des textes légaux intégraux et des sources relues par le cabinet. `legal` conserve le mode juridique avancé avec contrôles stricts. L’interface utilise par défaut la première lecture et le complément factuel.
+Version d’usage : `analyze` produit une première lecture immédiatement ; `deepen` combine une qualification factuelle par Ollama et un cadre conditionnel dans `strategie.ps1`. Pour les services, les moyens portent sur accord, exécution et prix. Chaque moyen relie des extraits exacts, une fiche documentaire, les conditions de son application, une objection, une réplique, une action et un élément susceptible de changer son évaluation. Les deux modes fonctionnent sans sources personnelles relues. `corpus-reference.json` contient six fiches de recherche publiques, distinctes des textes légaux intégraux et des sources relues par le cabinet. `legal` conserve le mode juridique avancé avec contrôles stricts.
 
 ## Installation et utilisation
 
@@ -24,7 +24,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\agent.ps1 analyze -Cas
 
 Pour une description sans pièce, créer un dossier vide et fournir les faits dans `-Question`. Les arguments peuvent apparaître dans l’historique du terminal : préférer un fichier local pour les descriptions confidentielles.
 
-Les rapports dans `vault/reports/` contiennent un inventaire non authentifié et, si les contrôles le permettent, des pistes conditionnelles avec citations exactes. Sans couverture documentaire, aucun modèle n’est appelé et une liste de collecte remplace l’analyse. Les sorties rejetées sont conservées dans `vault/rejected/`, sans affichage normal. Voir [les contrôles de qualité](CONTROLES-QUALITE.md).
+Les rapports dans `vault/reports/` contiennent un inventaire non authentifié et, pour `deepen`, les moyens ayant passé les contrôles de provenance. Un moyen invalide est écarté séparément ; une couverture incomplète est affichée. Si aucun moyen ne passe, la première lecture est conservée avec le motif. Les sorties rejetées restent dans `vault/rejected/`, sans affichage normal. Le mode avancé `legal` bloque avant tout appel si les thèmes obligatoires ne sont pas couverts par des sources relues. Voir [les contrôles de qualité](CONTROLES-QUALITE.md).
+
+`deepen` transmet au modèle le dossier choisi et les fiches, sans tronquer les pièces (limite de 24 000 caractères de pièces), avec un contexte de 8 192, 16 384 ou 32 768 jetons selon une borne conservatrice en octets UTF-8, et une limite de génération de 900 jetons. Au-delà du budget, la première lecture est conservée sans tronquer les pièces. Une sortie tronquée n’est pas acceptée. Les rapports enregistrent les ancrages, l’empreinte des références et les métriques renvoyées par Ollama. Le schéma ne permet aucune prose juridique libre : seulement trois axes, cinq états factuels et des identifiants de passages. Le programme reprend les citations et assemble les applications, objections et actions du cadre. La justesse de la qualification factuelle reste à vérifier. Les indices textuels explicites peuvent corriger la proposition du modèle ; `model_constat` et `controle` conservent cette distinction. Une intention argumentative ne devient pas une preuve de non-exécution. Les repères lexicaux ne sont pas un analyseur sémantique exhaustif. Le modèle sélectionne des identifiants de passages ; le programme remplit les citations originales, sans demander au modèle de les recopier. Les règles documentaires et les branches conditionnelles ne sont pas produites par le modèle. Le modèle reçoit les rôles explicitement déclarés dans les textes ; un rôle absent ou contradictoire reste à confirmer.
 
 ## Sources et veille juridique
 
@@ -36,7 +38,7 @@ Chaque source comporte un identifiant unique, un titre, une URL officielle HTTPS
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\agent.ps1 sources
 ```
 
-Les sources utilisables nécessitent aussi `code`, `article`, `topics`, `reviewed_by`, `reviewed_at` et `reviewed_hash`. L’empreinte lie la relecture au contenu, aux références, aux dates et aux thèmes. Les anciennes sources restent lisibles mais sont exclues tant qu’elles ne sont pas relues via l’interface.
+Dans le mode avancé `legal` et les directives juridiques générées, les sources utilisables nécessitent aussi `code`, `article`, `topics`, `reviewed_by`, `reviewed_at` et `reviewed_hash`. L’empreinte lie la relecture au contenu, aux références, aux dates et aux thèmes. Les anciennes sources restent lisibles mais sont exclues tant qu’elles ne sont pas relues via l’interface. Le mode `deepen` utilise les fiches documentaires livrées ; il ne prétend pas que ces fiches sont des sources relues par un avocat.
 
 La recherche retient les sources relues dont la période inclut `-AsOf`. Les thèmes obligatoires passent avant le classement lexical ; ils ne sont pas éliminés par la limite des six résultats lexicaux complémentaires. Une couverture incomplète bloque l’appel au modèle. Le budget de contexte reste strict : les sources obligatoires ne sont pas tronquées. Les extraits sont comparés mot pour mot ; ces contrôles ne valident pas leur interprétation.
 
@@ -89,5 +91,7 @@ En mode natif, définir `OLLAMA_NO_CLOUD=1` et bloquer les connexions sortantes 
 ## Validation
 
 Les tests vérifient aussi le blocage sans sources, les citations inventées, les pièces jamais chargées, les faits présentés comme prouvés, les chiffres hors citation, les demandes hors sujet, les thèmes omis et les sources modifiées avant publication. Ils utilisent des réponses simulées et des sources synthétiques, sans Ollama. Ils ne constituent pas une évaluation juridique du modèle. La qualité des réponses, le conteneur et l’approbation organisationnelle doivent être réceptionnés avant l’utilisation de vrais dossiers.
+
+Pour une évaluation réelle de sensibilité aux faits, exécuter `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\evaluer-strategie.ps1 -LocalModel qwen3.5:4b`. Le script appelle le modèle sur deux exposés fictifs opposés, exige trois moyens contrôlés par dossier et vérifie que la commande acceptée et la réception conforme affaiblissent les contestations correspondantes. Les résultats restent sous `.test-runs/`, exclus de Git. Ce test peut durer plusieurs minutes et ne constitue pas une validation juridique indépendante. Lire les applications, objections et actions dans les rapports, au-delà des étiquettes contrôlées automatiquement.
 
 Références : [API officielle Ollama](https://github.com/ollama/ollama/blob/main/docs/api.md), [Légifrance](https://www.legifrance.gouv.fr/).

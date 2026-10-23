@@ -170,6 +170,6 @@ function Render-ModelReview($Data,$Laws,$Pieces,$Plan) {
     return $lines -join "`n"
 }
 function Get-ReportDisplay($Record) {
-    if(-not (Has-Field $Record 'quality_version') -or $Record.quality_version -ne $script:QualityVersion){return 'Ancien format de rapport. Cliquer sur Lancer l analyse pour obtenir la nouvelle lecture du dossier, sans bibliotheque a remplir. Le fichier historique reste conserve localement.'}
+    if(-not (Has-Field $Record 'quality_version') -or $Record.quality_version -ne $script:QualityVersion){return 'Ancien format de rapport. Cliquer sur Premiere lecture rapide pour obtenir la nouvelle lecture du dossier, sans bibliotheque a remplir. Le fichier historique reste conserve localement.'}
     return $Record.text
 }
